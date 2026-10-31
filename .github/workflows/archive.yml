@@ -1,0 +1,109 @@
+name: archive
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"
+
+concurrency: archive
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+
+      - name: Install
+        run: |
+          pip install -U "yt-dlp[default]" internetarchive
+          yt-dlp --version
+          deno --version
+          ffmpeg -version | head -n 1
+
+      - name: IA config
+        env:
+          IA_ACCESS: ${{ secrets.IA_ACCESS }}
+          IA_SECRET: ${{ secrets.IA_SECRET }}
+        run: |
+          mkdir -p ~/.config/internetarchive
+          printf "[s3]\naccess = %s\nsecret = %s\n" "$IA_ACCESS" "$IA_SECRET" > ~/.config/internetarchive/ia.ini
+
+      - name: Archive
+        shell: bash
+        env:
+          CHANNEL: "@SpitefulDick"            # <-- подставь хэндл канала, с @
+          TAG: papich-yt-archive
+          CREATOR: "Arthas (Папич)"
+          IA_EMAIL: ${{ secrets.IA_EMAIL }}
+        run: |
+          # ---------- 1. все стримы и видео канала ----------
+          : > ids_raw.txt
+          yt-dlp --flat-playlist --print id "https://www.youtube.com/$CHANNEL/streams" \
+            | sed 's/^/stream /' >> ids_raw.txt || true
+          yt-dlp --flat-playlist --print id "https://www.youtube.com/$CHANNEL/videos" \
+            | sed 's/^/video /' >> ids_raw.txt || true
+
+          # убираем дубли по ID (если видео в обеих вкладках, считаем стримом)
+          awk '!seen[$2]++' ids_raw.txt > ids.txt
+          [ -s ids.txt ] || { echo "Список пуст, вероятно блокировка или неверный CHANNEL"; exit 1; }
+
+          # ---------- 2. что уже загружено ----------
+          # старые айтемы arthas-* из твоего аккаунта + новые с тегом успешной загрузки
+          {
+            ia search "uploader:$IA_EMAIL" --itemlist | grep -E '^arthas-[a-z]+-' || true
+            ia search "uploader:$IA_EMAIL AND subject:$TAG" --itemlist
+          } | sed -E 's/^(youtube|arthas-[a-z]+)-//' | sort -u > done.txt
+
+          # ---------- 3. очередь = разница ----------
+          awk 'FILENAME==ARGV[1]{d[$1]=1; next} !($2 in d)' done.txt ids.txt > todo.txt
+          echo "Всего на канале: $(wc -l < ids.txt)"
+          echo "Уже в архиве:    $(wc -l < done.txt)"
+          echo "К загрузке:      $(wc -l < todo.txt)"
+
+          # ---------- 4. скачиваем и заливаем ----------
+          end=$((SECONDS+19000))   # ~5 часов 17 минут, до лимита в 6 часов
+          while read -r kind id; do
+            if [ "$SECONDS" -gt "$end" ]; then
+              echo "Лимит времени, продолжим в следующем запуске"
+              break
+            fi
+
+            item="arthas-$kind-$id"
+            echo "=== $item ==="
+            rm -rf dl; mkdir dl
+
+            if ! yt-dlp \
+                 -f "bv*+ba/b" -S "res:720,ext:mp4:m4a" --merge-output-format mp4 \
+                 --max-filesize 8G \
+                 --sleep-requests 1 --sleep-interval 5 --max-sleep-interval 15 --retries 5 \
+                 --write-info-json --write-thumbnail \
+                 -o "dl/$id.%(ext)s" "https://youtu.be/$id"; then
+              echo "FAIL download $id"
+              continue
+            fi
+
+            title=$(jq -r '.title // empty' "dl/$id.info.json")
+            [ -n "$title" ] || title="$id"
+            date=$(jq -r '.upload_date // empty' "dl/$id.info.json" \
+                   | sed -E 's/^([0-9]{4})([0-9]{2})([0-9]{2})$/\1-\2-\3/')
+
+            if ia upload "$item" dl/"$id".* \
+                 --metadata="mediatype:movies" \
+                 --metadata="title:$title" \
+                 --metadata="creator:$CREATOR" \
+                 --metadata="date:$date" \
+                 --metadata="source:https://youtu.be/$id" \
+                 --retries 5; then
+              ia metadata "$item" --modify="subject:$TAG" || echo "WARN: тег не поставлен для $item"
+              echo "OK $item"
+            else
+              echo "FAIL upload $item"
+            fi
+
+            rm -rf dl
+          done < todo.txt
