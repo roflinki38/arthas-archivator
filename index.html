@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Архив Папича</title>
 <style>
-:root{--bg:#fff;--fg:#1a1a1a;--mut:#6b7280;--card:#f4f4f5;--bar:#e4e4e7;--acc:#2563eb}
-@media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--mut:#9ca3af;--card:#1c1c1e;--bar:#2e2e31;--acc:#60a5fa}}
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#6b7280;--card:#f4f4f5;--bar:#e4e4e7;--acc:#2563eb;--red:#dc2626}
+@media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--mut:#9ca3af;--card:#1c1c1e;--bar:#2e2e31;--acc:#60a5fa;--red:#f87171}}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}
 main{width:min(560px,92vw);padding:24px 0}
 h1{font-size:20px;margin:0 0 20px}
@@ -18,17 +18,29 @@ h1{font-size:20px;margin:0 0 20px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:22px 0}
 .card{background:var(--card);border-radius:10px;padding:14px}
 .card b{display:block;font-size:24px}
+.hero{font-size:clamp(30px,9vw,56px);font-weight:900;line-height:1.05;color:var(--red);margin:0 0 6px;text-transform:uppercase}
+.sub{color:var(--mut);margin:0 0 22px}
+.now{margin:18px 0}
+.now b{font-size:17px;margin:4px 0 8px;word-break:break-word}
+.now a{color:var(--acc);margin-right:14px;font-size:14px}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
 <main>
-  <h1>Архив канала Папича</h1>
+  <h1 class="hero">Пожизненный бан неизбежен</h1>
+  <p class="sub">Архив канала Папича</p>
   <div class="big"><span id="done">…</span> <small>из <span id="total">…</span> видео</small></div>
   <div class="bar"><i id="fill"></i></div>
   <div class="mut"><span id="pct">0</span>% · осталось <span id="left">…</span></div>
   <div class="grid">
     <div class="card">Стримы<b id="st">…</b></div>
     <div class="card">Видео<b id="vd">…</b></div>
+  </div>
+  <div class="card now" id="nowcard" hidden>
+    <div class="mut" id="stage"></div>
+    <b id="vtitle"></b>
+    <a id="yt" target="_blank" rel="noopener">▶ Открыть на YouTube</a><a id="ia" target="_blank" rel="noopener" hidden>Айтем на archive.org</a>
   </div>
   <div class="mut" id="now"></div>
   <div class="mut" id="upd"></div>
@@ -63,13 +75,22 @@ function render(live) {
   $("st").textContent = sD + " / " + sT;
   $("vd").textContent = vD + " / " + vT;
   if (base) {
-    const r = base.run;
-    $("now").textContent = (base.state === "running"
-      ? "Сейчас: " + (base.current || "подготовка")
-      : "Запуск завершён") + " · за запуск: " + r.ok + " загружено, " + r.failed + " ошибок";
+    const r = base.run, c = base.current || {};
+    const active = base.state === "running" && c.id;
+    $("nowcard").hidden = !active;
+    if (active) {
+      $("stage").textContent = "Этап: " + c.stage;
+      $("vtitle").textContent = c.title || c.id;
+      $("yt").href = "https://youtu.be/" + encodeURIComponent(c.id);
+      $("ia").hidden = c.stage !== "заливка на archive.org";
+      $("ia").href = "https://archive.org/details/" + encodeURIComponent(c.item);
+    }
+    $("now").textContent = (base.state === "running" ? "Запуск идёт" : "Запуск завершён")
+      + " · за запуск: " + r.ok + " загружено, " + r.failed + " ошибок";
     $("upd").textContent = "Данные обновлены: " + new Date(base.updated).toLocaleTimeString("ru-RU");
   } else {
     $("now").textContent = "";
+    $("nowcard").hidden = true;
     $("upd").textContent = "Данных о запуске пока нет.";
   }
 }
