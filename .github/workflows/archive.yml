@@ -20,10 +20,26 @@ jobs:
 
       - name: Install
         run: |
-          pip install -U "yt-dlp[default]" internetarchive
+          pip install -U "yt-dlp[default]" internetarchive bgutil-ytdlp-pot-provider
           yt-dlp --version
           deno --version
           ffmpeg -version | head -n 1
+
+      # --- PO token: локальный сервис, который генерирует токены для плагина ---
+      - name: Start PO token provider
+        run: |
+          docker run --name bgutil-provider -d --init \
+            -p 127.0.0.1:4416:4416 brainicism/bgutil-ytdlp-pot-provider
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null --max-time 20 -X POST \
+                 -H 'Content-Type: application/json' -d '{}' \
+                 http://127.0.0.1:4416/get_pot; then
+              echo "PO token provider готов"
+              break
+            fi
+            sleep 2
+          done
+          docker logs bgutil-provider | tail -n 5
 
       - name: IA config
         env:
@@ -40,17 +56,26 @@ jobs:
           TAG: papich-yt-archive
           CREATOR: "Arthas (Папич)"
           IA_EMAIL: ${{ secrets.IA_EMAIL }}
+          YT_COOKIES_B64: ${{ secrets.YT_COOKIES_B64 }}   # необязательно
         run: |
+          # ---------- 0. cookies (только если задан секрет YT_COOKIES_B64) ----------
+          COOKIE_ARGS=()
+          if [ -n "${YT_COOKIES_B64:-}" ]; then
+            echo "$YT_COOKIES_B64" | base64 -d > cookies.txt
+            COOKIE_ARGS=(--cookies cookies.txt)
+            echo "Cookies подключены"
+          fi
+
           # ---------- 1. все стримы и видео канала ----------
           : > ids_raw.txt
-          yt-dlp --flat-playlist --print id "https://www.youtube.com/$CHANNEL/streams" \
+          yt-dlp "${COOKIE_ARGS[@]}" --flat-playlist --print id "https://www.youtube.com/$CHANNEL/streams" \
             | sed 's/^/stream /' >> ids_raw.txt || true
-          yt-dlp --flat-playlist --print id "https://www.youtube.com/$CHANNEL/videos" \
+          yt-dlp "${COOKIE_ARGS[@]}" --flat-playlist --print id "https://www.youtube.com/$CHANNEL/videos" \
             | sed 's/^/video /' >> ids_raw.txt || true
 
           # убираем дубли по ID (если видео в обеих вкладках, считаем стримом)
           awk '!seen[$2]++' ids_raw.txt > ids.txt
-          [ -s ids.txt ] || { echo "Список пуст, вероятно блокировка или неверный CHANNEL"; exit 1; }
+          [ -s ids.txt ] || { echo "::error::Список пуст, вероятно блокировка или неверный CHANNEL"; exit 1; }
 
           # ---------- 2. что уже загружено ----------
           # старые айтемы arthas-* из твоего аккаунта + новые с тегом успешной загрузки
@@ -65,8 +90,19 @@ jobs:
           echo "Уже в архиве:    $(wc -l < done.txt)"
           echo "К загрузке:      $(wc -l < todo.txt)"
 
+          # ---------- 3.5. диагностика: работает ли PO token ----------
+          first=$(awk 'NR==1{print $2}' todo.txt)
+          if [ -n "$first" ]; then
+            echo "--- проверка PO token на $first ---"
+            yt-dlp -v --skip-download "${COOKIE_ARGS[@]}" "https://youtu.be/$first" 2>&1 \
+              | grep -E "PO Token|bgutil" | head -n 10 || true
+            echo "--- конец проверки ---"
+          fi
+
           # ---------- 4. скачиваем и заливаем ----------
           end=$((SECONDS+19000))   # ~5 часов 17 минут, до лимита в 6 часов
+          bot_fails=0
+
           while read -r kind id; do
             if [ "$SECONDS" -gt "$end" ]; then
               echo "Лимит времени, продолжим в следующем запуске"
@@ -77,15 +113,23 @@ jobs:
             echo "=== $item ==="
             rm -rf dl; mkdir dl
 
-            if ! yt-dlp \
+            if ! yt-dlp "${COOKIE_ARGS[@]}" \
                  -f "bv*+ba/b" -S "res:720,ext:mp4:m4a" --merge-output-format mp4 \
                  --max-filesize 8G \
                  --sleep-requests 1 --sleep-interval 5 --max-sleep-interval 15 --retries 5 \
                  --write-info-json --write-thumbnail \
-                 -o "dl/$id.%(ext)s" "https://youtu.be/$id"; then
+                 -o "dl/$id.%(ext)s" "https://youtu.be/$id" 2>&1 | tee dl.log; then
               echo "FAIL download $id"
+              if grep -qiE "confirm you.re not a bot|sign in to confirm" dl.log; then
+                bot_fails=$((bot_fails+1))
+                if [ "$bot_fails" -ge 3 ]; then
+                  echo "::error::YouTube блокирует запросы (бот-проверка), останавливаюсь. Если PO token не помог, нужны cookies (секрет YT_COOKIES_B64)"
+                  exit 1
+                fi
+              fi
               continue
             fi
+            bot_fails=0
 
             title=$(jq -r '.title // empty' "dl/$id.info.json")
             [ -n "$title" ] || title="$id"
@@ -107,3 +151,7 @@ jobs:
 
             rm -rf dl
           done < todo.txt
+
+      - name: Provider logs
+        if: always()
+        run: docker logs bgutil-provider 2>&1 | tail -n 30
