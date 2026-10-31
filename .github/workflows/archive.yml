@@ -12,14 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 350
     permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
 
@@ -64,6 +58,7 @@ jobs:
           TAG: papich-yt-archive
           CREATOR: "Arthas (Папич)"
           IA_EMAIL: ${{ secrets.IA_EMAIL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           YT_COOKIES_B64: ${{ secrets.YT_COOKIES_B64 }}   # необязательно
         run: |
           # ---------- 0. cookies (только если задан секрет YT_COOKIES_B64) ----------
@@ -101,6 +96,25 @@ jobs:
           echo "Уже в архиве:    $(wc -l < done.txt)"
           echo "К загрузке:      $(wc -l < todo.txt)"
 
+          # ---------- статус в реальном времени: status.json уходит в ветку status ----------
+          : > ok.txt
+          fail_run=0
+          write_status() {  # $1 = running|ended, $2 = текущий айтем
+            cat done.txt ok.txt 2>/dev/null | sort -u > all_done.txt
+            read -r st_t st_d vd_t vd_d < <(awk 'FILENAME==ARGV[1]{d[$1]=1;next} {t[$1]++; if($2 in d) a[$1]++} END{print t["stream"]+0, a["stream"]+0, t["video"]+0, a["video"]+0}' all_done.txt ids.txt)
+            jq -n --arg u "$(date -u +%FT%TZ)" --arg s "$1" --arg cur "$2" \
+              --argjson st_t "$st_t" --argjson st_d "$st_d" --argjson vd_t "$vd_t" --argjson vd_d "$vd_d" \
+              --argjson ok "$(wc -l < ok.txt)" --argjson fl "$fail_run" \
+              '{updated:$u,state:$s,current:$cur,streams:{total:$st_t,archived:$st_d},videos:{total:$vd_t,archived:$vd_d},run:{ok:$ok,failed:$fl}}' > status.json
+            rm -rf _st && mkdir _st && cp status.json _st/
+            ( cd _st && git init -q -b status && git config user.name archive-bot \
+              && git config user.email bot@users.noreply.github.com \
+              && git add status.json && git commit -qm status \
+              && git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" status ) || echo "WARN: статус не отправлен"
+          }
+          trap 'write_status ended ""' EXIT
+          write_status running ""
+
           # ---------- 3.5. диагностика: работает ли PO token ----------
           first=$(awk 'NR==1{print $2}' todo.txt)
           if [ -n "$first" ]; then
@@ -123,6 +137,7 @@ jobs:
 
             item="arthas-$kind-$id"
             echo "=== $item ==="
+            write_status running "$item"
             rm -rf dl; mkdir dl
 
             if ! yt-dlp "${COOKIE_ARGS[@]}" "${YT_ARGS[@]}" \
@@ -132,6 +147,7 @@ jobs:
                  --write-info-json --write-thumbnail \
                  -o "dl/$id.%(ext)s" "https://youtu.be/$id" 2>&1 | tee dl.log; then
               echo "FAIL download $id"
+              fail_run=$((fail_run+1))
               if grep -qi "confirm your age" dl.log; then
                 echo "AGE-RESTRICTED $id: нужны cookies, пропускаю"
               elif grep -qi "not a bot" dl.log; then
@@ -162,6 +178,7 @@ jobs:
               echo "$id" >> ok.txt
             else
               echo "FAIL upload $item"
+              fail_run=$((fail_run+1))
             fi
 
             rm -rf dl
@@ -170,25 +187,3 @@ jobs:
       - name: Provider logs
         if: always()
         run: docker logs bgutil-provider 2>&1 | tail -n 30
-
-      # --- статус для страницы: сколько всего и сколько уже в архиве ---
-      - name: Build status
-        if: always()
-        run: |
-          [ -s ids.txt ] && [ -f done.txt ] || { echo "нет данных для статуса"; exit 0; }
-          touch ok.txt
-          cat done.txt ok.txt | sort -u > all_done.txt
-          read -r st_t st_d vd_t vd_d < <(awk 'FILENAME==ARGV[1]{d[$1]=1;next} {t[$1]++; if($2 in d) a[$1]++} END{print t["stream"]+0, a["stream"]+0, t["video"]+0, a["video"]+0}' all_done.txt ids.txt)
-          mkdir -p _site
-          cp index.html _site/
-          jq -n --arg u "$(date -u +%FT%TZ)" \
-            --argjson a "$st_t" --argjson b "$st_d" --argjson c "$vd_t" --argjson d "$vd_d" \
-            '{updated:$u, streams:{total:$a, archived:$b}, videos:{total:$c, archived:$d}}' > _site/status.json
-          cat _site/status.json
-
-      - uses: actions/upload-pages-artifact@v3
-        if: always() && hashFiles('_site/status.json') != ''
-        with: { path: _site }
-
-      - uses: actions/deploy-pages@v4
-        if: always() && hashFiles('_site/status.json') != ''
