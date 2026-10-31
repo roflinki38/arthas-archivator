@@ -13,7 +13,7 @@ h1{font-size:20px;margin:0 0 20px}
 .big{font-size:44px;font-weight:700;line-height:1.1}
 .big small{font-size:20px;font-weight:400;color:var(--mut)}
 .bar{height:12px;background:var(--bar);border-radius:6px;overflow:hidden;margin:14px 0 6px}
-.bar i{display:block;height:100%;background:var(--acc);width:0;transition:width .6s}
+.bar i{display:block;height:100%;background:var(--acc);width:0;transition:width .6s,transform .3s}
 .mut{color:var(--mut);font-size:14px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:22px 0}
 .card{background:var(--card);border-radius:10px;padding:14px}
@@ -22,11 +22,38 @@ h1{font-size:20px;margin:0 0 20px}
 .sub{color:var(--mut);margin:0 0 22px}
 .now{margin:18px 0}
 .now b{font-size:17px;margin:4px 0 8px;word-break:break-word}
-.now a{color:var(--acc);margin-right:14px;font-size:14px}
+.now a{color:var(--acc);margin-right:14px;font-size:14px;text-decoration:none}
+.now a:hover{text-decoration:underline}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:22px;padding:13px 18px;background:var(--card);color:var(--fg);border:1px solid var(--bar);border-radius:10px;font-size:15px;font-weight:600;text-decoration:none;transition:all .15s ease;cursor:pointer}
+.btn:hover{border-color:var(--acc);color:var(--acc);background:var(--card)}
+.btn:active{transform:scale(.98)}
 [hidden]{display:none!important}
+
+/* Индикатор загрузки вверху страницы */
+.top-bar{position:fixed;top:0;left:0;width:100%;height:3px;background:transparent;overflow:hidden;z-index:999}
+.top-bar i{display:block;width:100%;height:100%;background:var(--acc);transform:translateX(-100%)}
+.top-bar.loading i{animation:top-sweep 1.2s infinite ease-in-out}
+@keyframes top-sweep{0%{transform:translateX(-100%)}50%{transform:translateX(0%)}100%{transform:translateX(100%)}}
+
+/* Спиннер и статус обновления */
+.spinner{display:inline-block;width:11px;height:11px;border:2px solid var(--mut);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite;vertical-align:-1px;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:6px;vertical-align:1px}
+.dot.err{background:#ef4444}
+
+/* Пульсация элементов до получения первых данных */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.initial-load #done,
+.initial-load #total,
+.initial-load #left,
+.initial-load #st,
+.initial-load #vd{display:inline-block;animation:pulse 1.2s infinite ease-in-out}
+.initial-load .bar i{width:35%!important;animation:bar-sweep 1.3s infinite ease-in-out}
+@keyframes bar-sweep{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
 </style>
 </head>
-<body>
+<body class="initial-load">
+<div id="top-bar" class="top-bar loading"><i></i></div>
 <main>
   <h1 class="hero">Пожизненный бан неизбежен</h1>
   <p class="sub">Архив канала Папича</p>
@@ -43,7 +70,16 @@ h1{font-size:20px;margin:0 0 20px}
     <a id="yt" target="_blank" rel="noopener">▶ Открыть на YouTube</a><a id="ia" target="_blank" rel="noopener" hidden>Айтем на archive.org</a>
   </div>
   <div class="mut" id="now"></div>
-  <div class="mut" id="upd"></div>
+  <div class="mut" id="upd"><span class="spinner"></span> Загрузка данных…</div>
+
+  <a class="btn" href="https://archive.org/details/@alnyx" target="_blank" rel="noopener">
+    <span>Коллекция на Internet Archive (@alnyx)</span>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+      <polyline points="15 3 21 3 21 9"></polyline>
+      <line x1="10" y1="14" x2="21" y2="3"></line>
+    </svg>
+  </a>
 </main>
 <script>
 const $ = id => document.getElementById(id);
@@ -53,6 +89,16 @@ const OWNER = gh ? location.hostname.split(".")[0] : "roflinki38";
 const REPO = gh ? location.pathname.split("/")[1] : "arthas-archivator";
 const STATUS_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/status/status.json`;
 let base = null;
+
+function setLoading(on) {
+  $("top-bar").classList.toggle("loading", on);
+  if (on) {
+    if (!base) document.body.classList.add("initial-load");
+    $("upd").innerHTML = '<span class="spinner"></span> ' + (base ? "Обновление данных…" : "Загрузка данных…");
+  } else {
+    document.body.classList.remove("initial-load");
+  }
+}
 
 async function loadBase() {
   try { base = await (await fetch(STATUS_URL + "?t=" + Date.now())).json(); } catch (e) {}
@@ -87,18 +133,23 @@ function render(live) {
     }
     $("now").textContent = (base.state === "running" ? "Запуск идёт" : "Запуск завершён")
       + " · за запуск: " + r.ok + " загружено, " + r.failed + " ошибок";
-    $("upd").textContent = "Данные обновлены: " + new Date(base.updated).toLocaleTimeString("ru-RU");
+    $("upd").innerHTML = '<span class="dot"></span>Данные обновлены: ' + new Date(base.updated).toLocaleTimeString("ru-RU");
   } else {
     $("now").textContent = "";
     $("nowcard").hidden = true;
-    $("upd").textContent = "Данных о запуске пока нет.";
+    $("upd").innerHTML = '<span class="dot err"></span>Данных о запуске пока нет.';
   }
 }
 async function tick() {
-  await loadBase();
-  let live = null;
-  try { live = await liveCount(); } catch (e) {}
-  render(live);
+  setLoading(true);
+  try {
+    await loadBase();
+    let live = null;
+    try { live = await liveCount(); } catch (e) {}
+    render(live);
+  } finally {
+    setLoading(false);
+  }
 }
 tick();
 setInterval(tick, 30000);
