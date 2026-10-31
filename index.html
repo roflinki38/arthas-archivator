@@ -30,30 +30,31 @@ h1{font-size:20px;margin:0 0 20px}
     <div class="card">Стримы<b id="st">…</b></div>
     <div class="card">Видео<b id="vd">…</b></div>
   </div>
+  <div class="mut" id="now"></div>
   <div class="mut" id="upd"></div>
 </main>
 <script>
 const $ = id => document.getElementById(id);
 const CREATOR = "Arthas (Папич)";
-let base = null;                      // status.json: список канала, раз за запуск
+const gh = location.hostname.endsWith("github.io");
+const OWNER = gh ? location.hostname.split(".")[0] : "roflinki38";
+const REPO = gh ? location.pathname.split("/")[1] : "arthas-archivator";
+const STATUS_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/status/status.json`;
+let base = null;
 
 async function loadBase() {
-  try { base = await (await fetch("status.json?t=" + Date.now())).json(); } catch (e) {}
+  try { base = await (await fetch(STATUS_URL + "?t=" + Date.now())).json(); } catch (e) {}
 }
-
-// живое число: сколько айтемов этого автора сейчас на archive.org
 async function liveCount() {
   const q = new URLSearchParams({ q: 'creator:"' + CREATOR + '"', rows: 0, output: "json" });
-  const j = await (await fetch("https://archive.org/advancedsearch.php?" + q)).json();
-  return j.response.numFound;
+  return (await (await fetch("https://archive.org/advancedsearch.php?" + q)).json()).response.numFound;
 }
-
 function render(live) {
   const sD = base ? base.streams.archived : 0, vD = base ? base.videos.archived : 0;
   const sT = base ? base.streams.total : 0,    vT = base ? base.videos.total : 0;
   const done = live ?? (sD + vD);
   const total = Math.max(sT + vT, done);
-  const pct = total ? Math.floor(done / total * 100) : 0;
+  const pct = base && total ? Math.floor(done / total * 100) : 0;
   $("done").textContent = done;
   $("total").textContent = base ? total : "?";
   $("left").textContent = base ? total - done : "?";
@@ -61,22 +62,25 @@ function render(live) {
   $("fill").style.width = pct + "%";
   $("st").textContent = sD + " / " + sT;
   $("vd").textContent = vD + " / " + vT;
-  $("upd").textContent = (live != null ? "Архив обновляется каждые 30 секунд. " : "Живые данные недоступны. ")
-    + (base ? "Список канала и разбивка на стримы и видео: " + new Date(base.updated).toLocaleString("ru-RU")
-            : "Список канала появится после первого запуска.");
+  if (base) {
+    const r = base.run;
+    $("now").textContent = (base.state === "running"
+      ? "Сейчас: " + (base.current || "подготовка")
+      : "Запуск завершён") + " · за запуск: " + r.ok + " загружено, " + r.failed + " ошибок";
+    $("upd").textContent = "Данные обновлены: " + new Date(base.updated).toLocaleTimeString("ru-RU");
+  } else {
+    $("now").textContent = "";
+    $("upd").textContent = "Данных о запуске пока нет.";
+  }
 }
-
 async function tick() {
+  await loadBase();
   let live = null;
   try { live = await liveCount(); } catch (e) {}
   render(live);
 }
-
-loadBase().then(() => {
-  tick();
-  setInterval(tick, 30000);
-  setInterval(loadBase, 600000);
-});
+tick();
+setInterval(tick, 30000);
 </script>
 </body>
 </html>
