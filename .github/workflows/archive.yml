@@ -11,7 +11,15 @@ jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 350
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
 
@@ -52,7 +60,7 @@ jobs:
       - name: Archive
         shell: bash
         env:
-          CHANNEL: "@SpitefulDick"            # <-- подставь хэндл канала, с @
+          CHANNEL: "@CHANNEL"            # <-- подставь хэндл канала, с @
           TAG: papich-yt-archive
           CREATOR: "Arthas (Папич)"
           IA_EMAIL: ${{ secrets.IA_EMAIL }}
@@ -65,6 +73,9 @@ jobs:
             COOKIE_ARGS=(--cookies cookies.txt)
             echo "Cookies подключены"
           fi
+
+          # клиенты YouTube, которые просят PO token (чтобы плагин реально сработал)
+          YT_ARGS=(--extractor-args "youtube:player-client=mweb,tv,web_safari")
 
           # ---------- 1. все стримы и видео канала ----------
           : > ids_raw.txt
@@ -94,7 +105,7 @@ jobs:
           first=$(awk 'NR==1{print $2}' todo.txt)
           if [ -n "$first" ]; then
             echo "--- проверка PO token на $first ---"
-            yt-dlp -v --skip-download "${COOKIE_ARGS[@]}" "https://youtu.be/$first" 2>&1 \
+            yt-dlp -v --skip-download "${COOKIE_ARGS[@]}" "${YT_ARGS[@]}" "https://youtu.be/$first" 2>&1 \
               | grep -E "PO Token|bgutil" | head -n 10 || true
             echo "--- конец проверки ---"
           fi
@@ -102,6 +113,7 @@ jobs:
           # ---------- 4. скачиваем и заливаем ----------
           end=$((SECONDS+19000))   # ~5 часов 17 минут, до лимита в 6 часов
           bot_fails=0
+          : > ok.txt
 
           while read -r kind id; do
             if [ "$SECONDS" -gt "$end" ]; then
@@ -113,14 +125,16 @@ jobs:
             echo "=== $item ==="
             rm -rf dl; mkdir dl
 
-            if ! yt-dlp "${COOKIE_ARGS[@]}" \
+            if ! yt-dlp "${COOKIE_ARGS[@]}" "${YT_ARGS[@]}" \
                  -f "bv*+ba/b" -S "res:720,ext:mp4:m4a" --merge-output-format mp4 \
                  --max-filesize 8G \
                  --sleep-requests 1 --sleep-interval 5 --max-sleep-interval 15 --retries 5 \
                  --write-info-json --write-thumbnail \
                  -o "dl/$id.%(ext)s" "https://youtu.be/$id" 2>&1 | tee dl.log; then
               echo "FAIL download $id"
-              if grep -qiE "confirm you.re not a bot|sign in to confirm" dl.log; then
+              if grep -qi "confirm your age" dl.log; then
+                echo "AGE-RESTRICTED $id: нужны cookies, пропускаю"
+              elif grep -qi "not a bot" dl.log; then
                 bot_fails=$((bot_fails+1))
                 if [ "$bot_fails" -ge 3 ]; then
                   echo "::error::YouTube блокирует запросы (бот-проверка), останавливаюсь. Если PO token не помог, нужны cookies (секрет YT_COOKIES_B64)"
@@ -145,6 +159,7 @@ jobs:
                  --retries 5; then
               ia metadata "$item" --modify="subject:$TAG" || echo "WARN: тег не поставлен для $item"
               echo "OK $item"
+              echo "$id" >> ok.txt
             else
               echo "FAIL upload $item"
             fi
@@ -155,3 +170,24 @@ jobs:
       - name: Provider logs
         if: always()
         run: docker logs bgutil-provider 2>&1 | tail -n 30
+
+      # --- статус для страницы: сколько всего и сколько уже в архиве ---
+      - name: Build status
+        if: always()
+        run: |
+          [ -s ids.txt ] && [ -f done.txt ] || { echo "нет данных для статуса"; exit 0; }
+          touch ok.txt
+          cat done.txt ok.txt | sort -u > all_done.txt
+          read -r st_t st_d vd_t vd_d < <(awk 'FILENAME==ARGV[1]{d[$1]=1;next} {t[$1]++; if($2 in d) a[$1]++} END{print t["stream"]+0, a["stream"]+0, t["video"]+0, a["video"]+0}' all_done.txt ids.txt)
+          mkdir -p site
+          jq -n --arg u "$(date -u +%FT%TZ)" \
+            --argjson a "$st_t" --argjson b "$st_d" --argjson c "$vd_t" --argjson d "$vd_d" \
+            '{updated:$u, streams:{total:$a, archived:$b}, videos:{total:$c, archived:$d}}' > site/status.json
+          cat site/status.json
+
+      - uses: actions/upload-pages-artifact@v3
+        if: always() && hashFiles('site/status.json') != ''
+        with: { path: site }
+
+      - uses: actions/deploy-pages@v4
+        if: always() && hashFiles('site/status.json') != ''
