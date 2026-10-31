@@ -179,15 +179,16 @@ jobs:
           touch ok.txt
           cat done.txt ok.txt | sort -u > all_done.txt
           read -r st_t st_d vd_t vd_d < <(awk 'FILENAME==ARGV[1]{d[$1]=1;next} {t[$1]++; if($2 in d) a[$1]++} END{print t["stream"]+0, a["stream"]+0, t["video"]+0, a["video"]+0}' all_done.txt ids.txt)
-          mkdir -p site
+          mkdir -p _site
+          cp index.html _site/
           jq -n --arg u "$(date -u +%FT%TZ)" \
             --argjson a "$st_t" --argjson b "$st_d" --argjson c "$vd_t" --argjson d "$vd_d" \
-            '{updated:$u, streams:{total:$a, archived:$b}, videos:{total:$c, archived:$d}}' > site/status.json
-          cat site/status.json
+            '{updated:$u, streams:{total:$a, archived:$b}, videos:{total:$c, archived:$d}}' > _site/status.json
+          cat _site/status.json
 
       - uses: actions/upload-pages-artifact@v3
-        if: always() && hashFiles('site/status.json') != ''
-        with: { path: site }
+        if: always() && hashFiles('_site/status.json') != ''
+        with: { path: _site }
 
       - uses: actions/deploy-pages@v4
-        if: always() && hashFiles('site/status.json') != ''
+        if: always() && hashFiles('_site/status.json') != ''
