@@ -60,7 +60,7 @@ jobs:
       - name: Archive
         shell: bash
         env:
-          CHANNEL: "@CHANNEL"            # <-- подставь хэндл канала, с @
+          CHANNEL: "@SpitefulDick"            # <-- подставь хэндл канала, с @
           TAG: papich-yt-archive
           CREATOR: "Arthas (Папич)"
           IA_EMAIL: ${{ secrets.IA_EMAIL }}
