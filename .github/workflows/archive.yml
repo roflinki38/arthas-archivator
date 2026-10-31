@@ -74,9 +74,9 @@ jobs:
 
           # ---------- 1. все стримы и видео канала ----------
           : > ids_raw.txt
-          yt-dlp "${COOKIE_ARGS[@]}" --flat-playlist --print id "https://www.youtube.com/$CHANNEL/streams" \
+          yt-dlp "${COOKIE_ARGS[@]}" --flat-playlist --print "%(id)s %(title)s" "https://www.youtube.com/$CHANNEL/streams" \
             | sed 's/^/stream /' >> ids_raw.txt || true
-          yt-dlp "${COOKIE_ARGS[@]}" --flat-playlist --print id "https://www.youtube.com/$CHANNEL/videos" \
+          yt-dlp "${COOKIE_ARGS[@]}" --flat-playlist --print "%(id)s %(title)s" "https://www.youtube.com/$CHANNEL/videos" \
             | sed 's/^/video /' >> ids_raw.txt || true
 
           # убираем дубли по ID (если видео в обеих вкладках, считаем стримом)
@@ -99,21 +99,22 @@ jobs:
           # ---------- статус в реальном времени: status.json уходит в ветку status ----------
           : > ok.txt
           fail_run=0
-          write_status() {  # $1 = running|ended, $2 = текущий айтем
+          cur_id=""; cur_title=""; cur_item=""; cur_stage="подготовка"
+          write_status() {  # $1 = running|ended; текущее видео берётся из cur_*
             cat done.txt ok.txt 2>/dev/null | sort -u > all_done.txt
             read -r st_t st_d vd_t vd_d < <(awk 'FILENAME==ARGV[1]{d[$1]=1;next} {t[$1]++; if($2 in d) a[$1]++} END{print t["stream"]+0, a["stream"]+0, t["video"]+0, a["video"]+0}' all_done.txt ids.txt)
-            jq -n --arg u "$(date -u +%FT%TZ)" --arg s "$1" --arg cur "$2" \
+            jq -n --arg u "$(date -u +%FT%TZ)" --arg s "$1" --arg cid "$cur_id" --arg cti "$cur_title" --arg cst "$cur_stage" --arg citem "$cur_item" \
               --argjson st_t "$st_t" --argjson st_d "$st_d" --argjson vd_t "$vd_t" --argjson vd_d "$vd_d" \
               --argjson ok "$(wc -l < ok.txt)" --argjson fl "$fail_run" \
-              '{updated:$u,state:$s,current:$cur,streams:{total:$st_t,archived:$st_d},videos:{total:$vd_t,archived:$vd_d},run:{ok:$ok,failed:$fl}}' > status.json
+              '{updated:$u,state:$s,current:{id:$cid,item:$citem,title:$cti,stage:$cst},streams:{total:$st_t,archived:$st_d},videos:{total:$vd_t,archived:$vd_d},run:{ok:$ok,failed:$fl}}' > status.json
             rm -rf _st && mkdir _st && cp status.json _st/
             ( cd _st && git init -q -b status && git config user.name archive-bot \
               && git config user.email bot@users.noreply.github.com \
               && git add status.json && git commit -qm status \
               && git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" status ) || echo "WARN: статус не отправлен"
           }
-          trap 'write_status ended ""' EXIT
-          write_status running ""
+          trap 'cur_stage="завершено"; write_status ended' EXIT
+          write_status running
 
           # ---------- 3.5. диагностика: работает ли PO token ----------
           first=$(awk 'NR==1{print $2}' todo.txt)
@@ -129,7 +130,7 @@ jobs:
           bot_fails=0
           : > ok.txt
 
-          while read -r kind id; do
+          while read -r kind id title; do
             if [ "$SECONDS" -gt "$end" ]; then
               echo "Лимит времени, продолжим в следующем запуске"
               break
@@ -137,7 +138,8 @@ jobs:
 
             item="arthas-$kind-$id"
             echo "=== $item ==="
-            write_status running "$item"
+            cur_id="$id"; cur_item="$item"; cur_title="$title"; cur_stage="скачивание с YouTube"
+            write_status running
             rm -rf dl; mkdir dl
 
             if ! yt-dlp "${COOKIE_ARGS[@]}" "${YT_ARGS[@]}" \
@@ -161,8 +163,12 @@ jobs:
             fi
             bot_fails=0
 
-            title=$(jq -r '.title // empty' "dl/$id.info.json")
+            jt=$(jq -r '.title // empty' "dl/$id.info.json")
+            [ -n "$jt" ] && title="$jt"
             [ -n "$title" ] || title="$id"
+            cur_title="$title"; cur_stage="заливка на archive.org"
+            write_status running
+
             date=$(jq -r '.upload_date // empty' "dl/$id.info.json" \
                    | sed -E 's/^([0-9]{4})([0-9]{2})([0-9]{2})$/\1-\2-\3/')
 
