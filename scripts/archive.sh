@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# archive.sh: скачивает с YouTube (1080p или макс.) и заливает на archive.org (айтем: arthas-archive-<id>)
+# archive.sh: скачивает с YouTube (1080p, до 24G, либо 720p для гигантских стримов) и заливает на archive.org
 set -eo pipefail
 
 touch skip.txt verified.txt
@@ -48,7 +48,6 @@ trap 'rc=$?; trap - EXIT; if [ "$rc" -eq 0 ]; then cur_stage="завершено
 # ---------- имена айтемов на archive.org ----------
 existing_item() {
   local id="$1" n
-  # Проверяем новый формат, а затем старые поколения имен
   for n in "arthas-archive-$id" "arthas-$id" "arthas-stream-$id" "arthas-video-$id"; do
     if ia metadata "$n" --exists </dev/null >/dev/null 2>&1; then printf '%s' "$n"; return 0; fi
   done
@@ -83,7 +82,6 @@ awk -F'\t' 'BEGIN{OFS="\t"} {
 ia search "uploader:$IA_EMAIL AND NOT subject:$TAG-incomplete" --itemlist > ia_all.txt
 ia search "uploader:$IA_EMAIL AND subject:$TAG AND NOT subject:$TAG-incomplete" --itemlist > ia_tag.txt
 
-# Учитываем как arthas-archive-<id>, так и старые arthas-<id>, arthas-stream-<id> и youtube-<id>
 { grep -E '^arthas-' ia_all.txt || true; cat ia_tag.txt; } \
   | sed -E 's/^(youtube|arthas-archive|arthas-stream|arthas-video|arthas)-//' | sort -u > done.txt
 
@@ -130,39 +128,59 @@ while IFS=$'\t' read -r id _ts title <&3; do
   write_status running || echo "::warning::не удалось обновить статус"
   rm -rf dl; mkdir dl
 
-  # Скачивает 1080p, если нет — максимально доступное (720p, 480p и т.д.)
+  # Основная попытка: до 24 ГБ, 1080p или максимальное доступное
   if ! timeout "$rem" "${YT[@]}" \
        -f "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/b" -S "ext:mp4:m4a" --merge-output-format mp4 \
-       --max-filesize 12G --no-progress \
+       --max-filesize 24G --no-progress \
        --sleep-requests 1 --sleep-interval 5 --max-sleep-interval 15 --retries 5 \
        --write-info-json --write-thumbnail \
        -o "dl/$id.%(ext)s" "https://youtu.be/$id" </dev/null 2>&1 | tee dl.log; then
-    echo "FAIL download $id"
-    fail_run=$((fail_run+1))
-    if grep -qiE 'cookies are no longer valid' dl.log; then
-      echo "::error::Куки протухли, обнови секрет YT_COOKIES_B64"; exit 1
-    elif grep -qiE 'not a bot' dl.log; then
-      bot_fails=$((bot_fails+1))
-      if [ "$bot_fails" -ge 3 ]; then
-        echo "::error::YouTube блокирует запросы (бот-проверка), вероятно протухли куки"; exit 1
+    
+    # Авто-фоллбэк: если файл >24G, пробуем скачать в 720p вместо отбрасывания
+    if grep -qiE 'larger than max-filesize' dl.log; then
+      echo "Файл > 24G в 1080p. Пробуем скачать в качестве <= 720p..."
+      rm -rf dl; mkdir dl
+      if timeout "$rem" "${YT[@]}" \
+           -f "bv*[height<=720]+ba/b[height<=720]" -S "ext:mp4:m4a" --merge-output-format mp4 \
+           --max-filesize 24G --no-progress \
+           --sleep-requests 1 --sleep-interval 5 --max-sleep-interval 15 --retries 5 \
+           --write-info-json --write-thumbnail \
+           -o "dl/$id.%(ext)s" "https://youtu.be/$id" </dev/null 2>&1 | tee dl.log; then
+        echo "Успешно скачано в 720p!"
+      else
+        echo "FAIL $id: превышает лимит даже в 720p"
+        skip_add "$id" 30 too_large
+        fail_run=$((fail_run+1))
+        rm -rf dl
+        continue
       fi
-    elif grep -qiE 'Requested format is not available' dl.log; then
-      fmt_fails=$((fmt_fails+1))
-      if [ "$fmt_fails" -ge 5 ]; then
-        echo "::error::5 видео подряд без доступных видеоформатов: проверь куки и версию yt-dlp/deno"; exit 1
+    else
+      echo "FAIL download $id"
+      fail_run=$((fail_run+1))
+      if grep -qiE 'cookies are no longer valid' dl.log; then
+        echo "::error::Куки протухли, обнови секрет YT_COOKIES_B64"; exit 1
+      elif grep -qiE 'not a bot' dl.log; then
+        bot_fails=$((bot_fails+1))
+        if [ "$bot_fails" -ge 3 ]; then
+          echo "::error::YouTube блокирует запросы (бот-проверка), вероятно протухли куки"; exit 1
+        fi
+      elif grep -qiE 'Requested format is not available' dl.log; then
+        fmt_fails=$((fmt_fails+1))
+        if [ "$fmt_fails" -ge 5 ]; then
+          echo "::error::5 видео подряд без доступных видеоформатов: проверь куки и версию yt-dlp/deno"; exit 1
+        fi
+        skip_add "$id" 3 no_format
+      elif grep -qiE 'confirm your age' dl.log; then
+        skip_add "$id" 7 age
+      elif grep -qiE "$LIVE" dl.log; then
+        skip_add "$id" 1 live
+      elif grep -qiE "$PERM" dl.log; then
+        reason=$( (grep -oiE "$PERM" dl.log || true) | head -n1 | tr ' ' '_') || true
+        skip_add "$id" 30 "${reason:-unavailable}"
       fi
-      skip_add "$id" 3 no_format
-    elif grep -qiE 'larger than max-filesize' dl.log; then
-      skip_add "$id" 30 too_large
-    elif grep -qiE 'confirm your age' dl.log; then
-      skip_add "$id" 7 age
-    elif grep -qiE "$LIVE" dl.log; then
-      skip_add "$id" 1 live
-    elif grep -qiE "$PERM" dl.log; then
-      reason=$( (grep -oiE "$PERM" dl.log || true) | head -n1 | tr ' ' '_') || true
-      skip_add "$id" 30 "${reason:-unavailable}"
+      rm -rf dl
+      continue
     fi
-    continue
   fi
   bot_fails=0; fmt_fails=0
 
