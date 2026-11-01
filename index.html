@@ -100,10 +100,9 @@
         font-size: 14px;
       }
 
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: var(--s2);
+      .stat {
+        width: fit-content;
+        min-width: 150px;
         margin: var(--s3) 0;
       }
 
@@ -179,7 +178,6 @@
         display: none !important;
       }
 
-      /* Индикатор загрузки вверху страницы */
       .top-bar {
         position: fixed;
         top: 0;
@@ -208,7 +206,6 @@
         100% { transform: translateX(100%); }
       }
 
-      /* Спиннер и статус обновления */
       .spinner {
         display: inline-block;
         width: 11px;
@@ -235,15 +232,9 @@
         vertical-align: 1px;
       }
 
-      .dot.err {
-        background: #ef4444;
-      }
+      .dot.err { background: #ef4444; }
+      .dot.stale { background: var(--warn); }
 
-      .dot.stale {
-        background: var(--warn);
-      }
-
-      /* Пульсация элементов до получения первых данных */
       @keyframes pulse {
         0%, 100% { opacity: 1; }
         50% { opacity: .3; }
@@ -251,9 +242,7 @@
 
       .initial-load #done,
       .initial-load #total,
-      .initial-load #left,
-      .initial-load #st,
-      .initial-load #vd {
+      .initial-load #left {
         display: inline-block;
         animation: pulse 1.2s infinite ease-in-out;
       }
@@ -293,11 +282,7 @@
       </div>
       <div class="mut"><span id="pct">0</span>% · осталось <span id="left">…</span></div>
 
-      <div class="grid">
-        <div class="card">Стримы<b id="st">…</b></div>
-        <div class="card">Видео<b id="vd">…</b></div>
-        <div class="card" id="skcard" hidden>Пропущено<b id="sk">0</b></div>
-      </div>
+      <div class="card stat" id="skcard" hidden>Пропущено<b id="sk">0</b></div>
 
       <div class="card now" id="nowcard" hidden>
         <div class="mut" id="stage"></div>
@@ -333,12 +318,11 @@
       const REPO = (gh && location.pathname.split("/")[1]) || "arthas-archivator";
       const STATUS_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/status/status.json`;
 
-      let base = null;   // последний удачно загруженный status.json
-      let live = null;   // последний удачный счётчик с archive.org
+      let base = null;
+      let live = null;
       let failures = 0;
       let timer = null;
 
-      // fetch с таймаутом и проверкой HTTP-статуса
       async function getJSON(url, ms = 10000) {
         const ctl = new AbortController();
         const t = setTimeout(() => ctl.abort(), ms);
@@ -402,10 +386,11 @@
       }
 
       function render() {
-        const sD = base?.streams?.archived ?? 0, vD = base?.videos?.archived ?? 0;
-        const sT = base?.streams?.total ?? 0, vT = base?.videos?.total ?? 0;
-        const done = live ?? (sD + vD);
-        const total = Math.max(sT + vT, done);
+        const b = base || {};
+        const doneBase = b.archived ?? ((b.streams?.archived || 0) + (b.videos?.archived || 0));
+        const totalBase = b.total ?? ((b.streams?.total || 0) + (b.videos?.total || 0));
+        const done = live ?? doneBase;
+        const total = Math.max(totalBase, done);
         const pct = base && total ? Math.min(100, Math.floor(done / total * 100)) : 0;
 
         $("done").textContent = done;
@@ -414,8 +399,6 @@
         $("pct").textContent = pct;
         $("fill").style.width = pct + "%";
         $("pbar").setAttribute("aria-valuenow", pct);
-        $("st").textContent = sD + " / " + sT;
-        $("vd").textContent = vD + " / " + vT;
         $("skcard").hidden = !(base && base.skipped);
         if (base && base.skipped) $("sk").textContent = base.skipped;
         if (base) document.title = `${pct}% · Архив Папича`;
@@ -471,13 +454,11 @@
           document.body.classList.remove("initial-load");
           setLoading(false);
           render();
-          // следующий опрос только после завершения текущего; при ошибках реже
           const delay = Math.min(POLL_MS * 2 ** failures, MAX_BACKOFF_MS);
           if (!document.hidden) timer = setTimeout(tick, delay);
         }
       }
 
-      // не опрашиваем в фоновой вкладке; при возврате обновляемся сразу
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) clearTimeout(timer);
         else tick();
