@@ -149,6 +149,18 @@ while read -r kind id title <&3; do
   fi
   bot_fails=0; fmt_fails=0
 
+  # Проверяем, было ли видео пропущено фильтром (например, свежий или идущий стрим)
+  if [ ! -f "dl/$id.info.json" ]; then
+    if grep -qi 'does not pass filter' dl.log; then
+      echo "SKIP $id: трансляция ещё идёт или завершилась менее 2 дней назад"
+    else
+      echo "FAIL $id: info.json не создан"
+      fail_run=$((fail_run+1))
+    fi
+    rm -rf dl
+    continue
+  fi
+
   jt=$(jq -r '.title // empty' "dl/$id.info.json")
   [ -n "$jt" ] && title="$jt"
   [ -n "$title" ] || title="$id"
