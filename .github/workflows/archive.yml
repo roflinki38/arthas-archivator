@@ -137,6 +137,20 @@ jobs:
           done 3< a_heights.txt
           echo "Аудит: >=${MIN_H}p: $good, помечено на перезаливку: $low, высота неизвестна: $unk, ошибок: $err"
 
+      # --- Фильтр yt-dlp: пропускаем идущие трансляции и стримы свежее 2 дней ---
+      - name: Configure yt-dlp filter
+        shell: bash
+        run: |
+          CUTOFF=$(($(date +%s) - 172800))
+          mkdir -p ~/.config/yt-dlp
+          cat << EOF > ~/.config/yt-dlp/config
+          --ignore-no-formats
+          --match-filter "!was_live & !is_live & live_status!=post_live & live_status!=is_upcoming"
+          --match-filter "live_status=was_live & release_timestamp <= $CUTOFF"
+          --match-filter "live_status=was_live & !release_timestamp & timestamp <= $CUTOFF"
+          EOF
+          echo "Конфигурация yt-dlp создана. Стримы позднее $CUTOFF будут игнорироваться."
+
       - name: Archive
         shell: bash
         env:
@@ -150,7 +164,9 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: rm -f cookies.txt
+        run: |
+          rm -f cookies.txt
+          rm -f ~/.config/yt-dlp/config
 
       # --- сообщения о сбоях: issue в этом репозитории (GitHub пришлёт письмо) ---
       - name: Report failure
