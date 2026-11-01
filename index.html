@@ -1,203 +1,489 @@
 <!doctype html>
 <html lang="ru">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Архив Папича</title>
-<meta name="description" content="Прогресс архивации канала Папича на Internet Archive">
-<meta name="color-scheme" content="light dark">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📼</text></svg>">
-<style>
-:root{--bg:#fff;--fg:#1a1a1a;--mut:#6b7280;--card:#f4f4f5;--bar:#e4e4e7;--acc:#2563eb;--red:#dc2626;--ok:#10b981;--warn:#f59e0b}
-@media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--mut:#9ca3af;--card:#1c1c1e;--bar:#2e2e31;--acc:#60a5fa;--red:#f87171}}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}
-main{width:min(560px,92vw);padding:24px 0}
-.big{font-size:44px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
-.big small{font-size:20px;font-weight:400;color:var(--mut)}
-.bar{height:12px;background:var(--bar);border-radius:6px;overflow:hidden;margin:14px 0 6px}
-.bar i{display:block;height:100%;background:var(--acc);width:0;transition:width .6s}
-.mut{color:var(--mut);font-size:14px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:22px 0}
-.card{background:var(--card);border-radius:10px;padding:14px}
-.card b{display:block;font-size:24px;font-variant-numeric:tabular-nums}
-.hero{font-size:clamp(30px,9vw,56px);font-weight:900;line-height:1.05;color:var(--red);margin:0 0 6px;text-transform:uppercase}
-.sub{color:var(--mut);margin:0 0 22px}
-.now{margin:18px 0}
-.now b{display:block;font-size:17px;margin:4px 0 8px;word-break:break-word}
-.now a{color:var(--acc);margin-right:14px;font-size:14px;text-decoration:none}
-.now a:hover{text-decoration:underline}
-a:focus-visible,.btn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-.btn{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:22px;padding:13px 18px;background:var(--card);color:var(--fg);border:1px solid var(--bar);border-radius:10px;font-size:15px;font-weight:600;text-decoration:none;transition:border-color .15s,color .15s}
-.btn:hover{border-color:var(--acc);color:var(--acc)}
-[hidden]{display:none!important}
-.top-bar{position:fixed;top:0;left:0;width:100%;height:3px;overflow:hidden;z-index:999}
-.top-bar i{display:block;width:100%;height:100%;background:var(--acc);transform:translateX(-100%)}
-.top-bar.loading i{animation:sweep 1.2s infinite ease-in-out}
-@keyframes sweep{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}
-.spinner{display:inline-block;width:11px;height:11px;border:2px solid var(--mut);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite;vertical-align:-1px;margin-right:6px}
-@keyframes spin{to{transform:rotate(360deg)}}
-.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:6px;vertical-align:1px}
-.dot.err{background:#ef4444}
-.dot.stale{background:var(--warn)}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.initial-load #done,.initial-load #total,.initial-load #left,.initial-load #st,.initial-load #vd{display:inline-block;animation:pulse 1.2s infinite ease-in-out}
-.initial-load .bar i{width:35%!important;animation:bar-sweep 1.3s infinite ease-in-out}
-@keyframes bar-sweep{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-</style>
-</head>
-<body class="initial-load">
-<div id="top-bar" class="top-bar loading" aria-hidden="true"><i></i></div>
-<main>
-<h1 class="hero">Пожизненный бан неизбежен</h1>
-<p class="sub">Архив канала Папича</p>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Архив Папича</title>
+    <meta name="description" content="Прогресс архивации канала Папича на Internet Archive">
+    <meta name="color-scheme" content="light dark">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📼</text></svg>">
+    <style>
+      :root {
+        --bg: #fff;
+        --fg: #1a1a1a;
+        --mut: #6b7280;
+        --card: #f4f4f5;
+        --bar: #e4e4e7;
+        --acc: #2563eb;
+        --red: #dc2626;
+        --ok: #10b981;
+        --warn: #f59e0b;
+        --s1: 8px;
+        --s2: 16px;
+        --s3: 24px;
+        --s4: 32px;
+      }
 
-<div class="big"><span id="done">…</span> <small>из <span id="total">…</span> видео</small></div>
-<div class="bar" role="progressbar" aria-label="Прогресс архивации" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="pbar"><i id="fill"></i></div>
-<div class="mut"><span id="pct">0</span>% · осталось <span id="left">…</span></div>
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111;
+          --fg: #eee;
+          --mut: #9ca3af;
+          --card: #1c1c1e;
+          --bar: #2e2e31;
+          --acc: #60a5fa;
+          --red: #f87171;
+        }
+      }
 
-<div class="grid">
-<div class="card">Стримы<b id="st">…</b></div>
-<div class="card">Видео<b id="vd">…</b></div>
-</div>
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.5 system-ui, sans-serif;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+      }
 
-<div class="card now" id="nowcard" hidden>
-<div class="mut" id="stage"></div>
-<b id="vtitle"></b>
-<a id="yt" target="_blank" rel="noopener noreferrer">▶ Открыть на YouTube</a><a id="ia" target="_blank" rel="noopener noreferrer" hidden>Айтем на archive.org</a>
-</div>
+      main {
+        width: min(560px, 92vw);
+        padding: var(--s4) 0;
+      }
 
-<div class="mut" id="now" aria-live="polite"></div>
-<div class="mut" id="upd" aria-live="polite"><span class="spinner"></span> Загрузка данных…</div>
+      .hero {
+        font-size: clamp(30px, 9vw, 56px);
+        font-weight: 900;
+        line-height: 1.05;
+        color: var(--red);
+        margin: 0 0 var(--s1);
+        text-transform: uppercase;
+      }
 
-<a class="btn" href="https://archive.org/details/@alnyx" target="_blank" rel="noopener noreferrer">
-<span>Коллекция на Internet Archive (@alnyx)</span>
-<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-</a>
-</main>
+      .sub {
+        color: var(--mut);
+        margin: 0 0 var(--s4);
+      }
 
-<script>
-const $ = id => document.getElementById(id);
-const CREATOR = "Arthas (Папич)";
-const POLL_MS = 30000, MAX_BACKOFF_MS = 300000, STALE_MS = 15 * 60 * 1000;
+      .big {
+        font-size: 44px;
+        font-weight: 700;
+        line-height: 1.1;
+        font-variant-numeric: tabular-nums;
+        margin: 0;
+      }
 
-const gh = location.hostname.endsWith("github.io");
-const OWNER = gh ? location.hostname.split(".")[0] : "roflinki38";
-const REPO = (gh && location.pathname.split("/")[1]) || "arthas-archivator";
-const STATUS_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/status/status.json`;
+      .big small {
+        font-size: 20px;
+        font-weight: 400;
+        color: var(--mut);
+      }
 
-let base = null;      // последний удачно загруженный status.json
-let live = null;      // последний удачный счётчик с archive.org
-let failures = 0;
-let timer = null;
+      .bar {
+        height: 12px;
+        background: var(--bar);
+        border-radius: 6px;
+        overflow: hidden;
+        margin: var(--s2) 0 var(--s1);
+      }
 
-// fetch с таймаутом и проверкой HTTP-статуса
-async function getJSON(url, ms = 10000) {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), ms);
-  try {
-    const r = await fetch(url, { signal: ctl.signal, cache: "no-store" });
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    return await r.json();
-  } finally { clearTimeout(t); }
-}
+      .bar i {
+        display: block;
+        height: 100%;
+        background: var(--acc);
+        width: 0;
+        transition: width .6s;
+      }
 
-function setLoading(on) {
-  $("top-bar").classList.toggle("loading", on);
-  if (on) {
-    if (!base) document.body.classList.add("initial-load");
-    $("upd").replaceChildren(Object.assign(document.createElement("span"), { className: "spinner" }),
-      document.createTextNode(base ? "Обновление данных…" : "Загрузка данных…"));
-  }
-}
+      .mut {
+        color: var(--mut);
+        font-size: 14px;
+      }
 
-async function loadBase() {
-  try { base = await getJSON(STATUS_URL + "?t=" + Date.now()); return true; }
-  catch (e) { return false; }
-}
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: var(--s2);
+        margin: var(--s3) 0;
+      }
 
-async function loadLive() {
-  const q = new URLSearchParams({ q: 'creator:"' + CREATOR + '"', rows: 0, output: "json" });
-  try {
-    live = (await getJSON("https://archive.org/advancedsearch.php?" + q)).response.numFound;
-    return true;
-  } catch (e) { return false; }
-}
+      .card {
+        background: var(--card);
+        border-radius: 10px;
+        padding: var(--s2);
+      }
 
-function status(cls, text) {
-  const dot = Object.assign(document.createElement("span"), { className: "dot " + cls });
-  $("upd").replaceChildren(dot, document.createTextNode(text));
-}
+      .card b {
+        display: block;
+        margin-top: 4px;
+        font-size: 24px;
+        font-variant-numeric: tabular-nums;
+      }
 
-function render() {
-  const sD = base?.streams?.archived ?? 0, vD = base?.videos?.archived ?? 0;
-  const sT = base?.streams?.total ?? 0,    vT = base?.videos?.total ?? 0;
-  const done = live ?? (sD + vD);
-  const total = Math.max(sT + vT, done);
-  const pct = base && total ? Math.min(100, Math.floor(done / total * 100)) : 0;
+      .now {
+        margin: var(--s3) 0;
+      }
 
-  $("done").textContent = done;
-  $("total").textContent = base ? total : "?";
-  $("left").textContent = base ? total - done : "?";
-  $("pct").textContent = pct;
-  $("fill").style.width = pct + "%";
-  $("pbar").setAttribute("aria-valuenow", pct);
-  $("st").textContent = sD + " / " + sT;
-  $("vd").textContent = vD + " / " + vT;
-  if (base) document.title = `${pct}% · Архив Папича`;
+      .now b {
+        display: block;
+        font-size: 17px;
+        margin: 4px 0 var(--s2);
+        word-break: break-word;
+      }
 
-  if (!base) {
-    $("now").textContent = "";
-    $("nowcard").hidden = true;
-    status("err", failures ? "Не удалось загрузить данные, повторяю…" : "Данных о запуске пока нет.");
-    return;
-  }
+      .now a {
+        color: var(--acc);
+        margin-right: var(--s2);
+        font-size: 14px;
+        text-decoration: none;
+      }
 
-  const r = base.run || {}, c = base.current || {};
-  const active = base.state === "running" && c.id;
-  $("nowcard").hidden = !active;
-  if (active) {
-    $("stage").textContent = "Этап: " + (c.stage || "—");
-    $("vtitle").textContent = c.title || c.id;
-    $("yt").href = "https://youtu.be/" + encodeURIComponent(c.id);
-    const showIa = c.stage === "заливка на archive.org" && c.item;
-    $("ia").hidden = !showIa;
-    if (showIa) $("ia").href = "https://archive.org/details/" + encodeURIComponent(c.item);
-  }
-  $("now").textContent = (base.state === "running" ? "Запуск идёт" : "Запуск завершён")
-    + " · за запуск: " + (r.ok ?? 0) + " загружено, " + (r.failed ?? 0) + " ошибок";
+      .now a:hover {
+        text-decoration: underline;
+      }
 
-  const upd = new Date(base.updated);
-  const age = Date.now() - upd.getTime();
-  const when = upd.toLocaleTimeString("ru-RU");
-  if (failures) status("err", "Часть данных не обновилась · показаны последние от " + when);
-  else if (base.state === "running" && age > STALE_MS) status("stale", "Данные устарели: обновлены в " + when + " (запуск мог зависнуть)");
-  else status("", "Данные обновлены: " + when);
-}
+      a:focus-visible,
+      .btn:focus-visible {
+        outline: 2px solid var(--acc);
+        outline-offset: 2px;
+      }
 
-async function tick() {
-  clearTimeout(timer);
-  setLoading(true);
-  try {
-    const [okB, okL] = await Promise.all([loadBase(), loadLive()]);
-    failures = (okB && okL) ? 0 : failures + 1;
-    render();
-  } finally {
-    document.body.classList.remove("initial-load");
-    setLoading(false);
-    render();
-    // следующий опрос только после завершения текущего; при ошибках — экспоненциально реже
-    const delay = Math.min(POLL_MS * 2 ** failures, MAX_BACKOFF_MS);
-    if (!document.hidden) timer = setTimeout(tick, delay);
-  }
-}
+      .btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--s1);
+        margin-top: var(--s3);
+        padding: var(--s2) var(--s3);
+        background: var(--card);
+        color: var(--fg);
+        border: 1px solid var(--bar);
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: border-color .15s, color .15s;
+      }
 
-// не опрашиваем в фоновой вкладке; при возврате обновляемся сразу
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) clearTimeout(timer); else tick();
-});
+      .btn:hover {
+        border-color: var(--acc);
+        color: var(--acc);
+      }
 
-tick();
-</script>
-</body>
+      .status {
+        display: grid;
+        gap: 4px;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      /* Индикатор загрузки вверху страницы */
+      .top-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        overflow: hidden;
+        z-index: 999;
+      }
+
+      .top-bar i {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: var(--acc);
+        transform: translateX(-100%);
+      }
+
+      .top-bar.loading i {
+        animation: sweep 1.2s infinite ease-in-out;
+      }
+
+      @keyframes sweep {
+        0% { transform: translateX(-100%); }
+        50% { transform: translateX(0); }
+        100% { transform: translateX(100%); }
+      }
+
+      /* Спиннер и статус обновления */
+      .spinner {
+        display: inline-block;
+        width: 11px;
+        height: 11px;
+        border: 2px solid var(--mut);
+        border-top-color: var(--acc);
+        border-radius: 50%;
+        animation: spin .7s linear infinite;
+        vertical-align: -1px;
+        margin-right: 6px;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--ok);
+        margin-right: 6px;
+        vertical-align: 1px;
+      }
+
+      .dot.err {
+        background: #ef4444;
+      }
+
+      .dot.stale {
+        background: var(--warn);
+      }
+
+      /* Пульсация элементов до получения первых данных */
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: .3; }
+      }
+
+      .initial-load #done,
+      .initial-load #total,
+      .initial-load #left,
+      .initial-load #st,
+      .initial-load #vd {
+        display: inline-block;
+        animation: pulse 1.2s infinite ease-in-out;
+      }
+
+      .initial-load .bar i {
+        width: 35% !important;
+        animation: bar-sweep 1.3s infinite ease-in-out;
+      }
+
+      @keyframes bar-sweep {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(300%); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+
+  <body class="initial-load">
+    <div id="top-bar" class="top-bar loading" aria-hidden="true"><i></i></div>
+
+    <main>
+      <h1 class="hero">Пожизненный бан неизбежен</h1>
+      <p class="sub">Автоматическая архивация канала Папича</p>
+
+      <div class="big">
+        <span id="done">…</span>
+        <small>из <span id="total">…</span> видео</small>
+      </div>
+      <div class="bar" id="pbar" role="progressbar" aria-label="Прогресс архивации" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <i id="fill"></i>
+      </div>
+      <div class="mut"><span id="pct">0</span>% · осталось <span id="left">…</span></div>
+
+      <div class="grid">
+        <div class="card">Стримы<b id="st">…</b></div>
+        <div class="card">Видео<b id="vd">…</b></div>
+        <div class="card" id="skcard" hidden>Пропущено<b id="sk">0</b></div>
+      </div>
+
+      <div class="card now" id="nowcard" hidden>
+        <div class="mut" id="stage"></div>
+        <b id="vtitle"></b>
+        <a id="yt" target="_blank" rel="noopener noreferrer">▶ Открыть на YouTube</a>
+        <a id="ia" target="_blank" rel="noopener noreferrer" hidden>Айтем на archive.org</a>
+      </div>
+
+      <div class="status">
+        <div class="mut" id="now" aria-live="polite"></div>
+        <div class="mut" id="upd" aria-live="polite">
+          <span class="spinner"></span> Загрузка данных…
+        </div>
+      </div>
+
+      <a class="btn" href="https://archive.org/details/@alnyx" target="_blank" rel="noopener noreferrer">
+        <span>Коллекция на Internet Archive (@alnyx)</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
+        </svg>
+      </a>
+    </main>
+
+    <script>
+      const $ = id => document.getElementById(id);
+      const CREATOR = "Arthas (Папич)";
+      const POLL_MS = 30000, MAX_BACKOFF_MS = 300000, STALE_MS = 15 * 60 * 1000;
+
+      const gh = location.hostname.endsWith("github.io");
+      const OWNER = gh ? location.hostname.split(".")[0] : "roflinki38";
+      const REPO = (gh && location.pathname.split("/")[1]) || "arthas-archivator";
+      const STATUS_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/status/status.json`;
+
+      let base = null;   // последний удачно загруженный status.json
+      let live = null;   // последний удачный счётчик с archive.org
+      let failures = 0;
+      let timer = null;
+
+      // fetch с таймаутом и проверкой HTTP-статуса
+      async function getJSON(url, ms = 10000) {
+        const ctl = new AbortController();
+        const t = setTimeout(() => ctl.abort(), ms);
+        try {
+          const r = await fetch(url, { signal: ctl.signal, cache: "no-store" });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return await r.json();
+        } finally {
+          clearTimeout(t);
+        }
+      }
+
+      function setLoading(on) {
+        $("top-bar").classList.toggle("loading", on);
+        if (on) {
+          if (!base) document.body.classList.add("initial-load");
+          $("upd").replaceChildren(
+            Object.assign(document.createElement("span"), { className: "spinner" }),
+            document.createTextNode(base ? "Обновление данных…" : "Загрузка данных…")
+          );
+        }
+      }
+
+      async function loadBase() {
+        try {
+          base = await getJSON(STATUS_URL + "?t=" + Date.now());
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      async function loadLive() {
+        const q = new URLSearchParams({
+          q: 'creator:"' + CREATOR + '" AND NOT subject:papich-yt-archive-incomplete',
+          rows: 0,
+          output: "json"
+        });
+        try {
+          live = (await getJSON("https://archive.org/advancedsearch.php?" + q)).response.numFound;
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      const rtf = new Intl.RelativeTimeFormat("ru", { numeric: "auto" });
+
+      function ago(date) {
+        const s = Math.round((date.getTime() - Date.now()) / 1000);
+        const a = Math.abs(s);
+        if (a < 60) return "только что";
+        if (a < 3600) return rtf.format(Math.round(s / 60), "minute");
+        if (a < 86400) return rtf.format(Math.round(s / 3600), "hour");
+        return rtf.format(Math.round(s / 86400), "day");
+      }
+
+      function status(cls, text) {
+        const dot = Object.assign(document.createElement("span"), { className: "dot " + cls });
+        $("upd").replaceChildren(dot, document.createTextNode(text));
+      }
+
+      function render() {
+        const sD = base?.streams?.archived ?? 0, vD = base?.videos?.archived ?? 0;
+        const sT = base?.streams?.total ?? 0, vT = base?.videos?.total ?? 0;
+        const done = live ?? (sD + vD);
+        const total = Math.max(sT + vT, done);
+        const pct = base && total ? Math.min(100, Math.floor(done / total * 100)) : 0;
+
+        $("done").textContent = done;
+        $("total").textContent = base ? total : "?";
+        $("left").textContent = base ? total - done : "?";
+        $("pct").textContent = pct;
+        $("fill").style.width = pct + "%";
+        $("pbar").setAttribute("aria-valuenow", pct);
+        $("st").textContent = sD + " / " + sT;
+        $("vd").textContent = vD + " / " + vT;
+        $("skcard").hidden = !(base && base.skipped);
+        if (base && base.skipped) $("sk").textContent = base.skipped;
+        if (base) document.title = `${pct}% · Архив Папича`;
+
+        if (!base) {
+          $("now").textContent = "";
+          $("nowcard").hidden = true;
+          status("err", failures ? "Не удалось загрузить данные, повторяю…" : "Данных о запуске пока нет.");
+          return;
+        }
+
+        const r = base.run || {}, c = base.current || {};
+        const active = base.state === "running" && c.id;
+        $("nowcard").hidden = !active;
+        if (active) {
+          $("stage").textContent = "Этап: " + (c.stage || "—");
+          $("vtitle").textContent = c.title || c.id;
+          $("yt").href = "https://youtu.be/" + encodeURIComponent(c.id);
+          const showIa = c.stage === "заливка на archive.org" && c.item;
+          $("ia").hidden = !showIa;
+          if (showIa) $("ia").href = "https://archive.org/details/" + encodeURIComponent(c.item);
+        }
+
+        const stateText = base.state === "running" ? "Запуск идёт"
+          : base.state === "failed" ? "Запуск остановлен из-за ошибки"
+          : "Запуск завершён";
+        $("now").textContent = stateText
+          + " · за запуск: " + (r.ok ?? 0) + " загружено, " + (r.failed ?? 0) + " ошибок";
+
+        const upd = new Date(base.updated);
+        const age = Date.now() - upd.getTime();
+        const when = ago(upd);
+        $("upd").title = upd.toLocaleString("ru-RU");
+        if (failures) {
+          status("err", "Часть данных не обновилась, показаны последние: " + when);
+        } else if (base.state === "failed") {
+          status("err", "Запуск остановлен с ошибкой (" + when + "), подробности в GitHub Actions");
+        } else if (base.state === "running" && age > STALE_MS) {
+          status("stale", "Данные устарели: обновлены " + when + " (запуск мог зависнуть)");
+        } else {
+          status("", "Данные обновлены " + when);
+        }
+      }
+
+      async function tick() {
+        clearTimeout(timer);
+        setLoading(true);
+        try {
+          const [okB, okL] = await Promise.all([loadBase(), loadLive()]);
+          failures = (okB && okL) ? 0 : failures + 1;
+          render();
+        } finally {
+          document.body.classList.remove("initial-load");
+          setLoading(false);
+          render();
+          // следующий опрос только после завершения текущего; при ошибках реже
+          const delay = Math.min(POLL_MS * 2 ** failures, MAX_BACKOFF_MS);
+          if (!document.hidden) timer = setTimeout(tick, delay);
+        }
+      }
+
+      // не опрашиваем в фоновой вкладке; при возврате обновляемся сразу
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) clearTimeout(timer);
+        else tick();
+      });
+
+      tick();
+    </script>
+  </body>
 </html>
