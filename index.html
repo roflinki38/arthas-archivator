@@ -188,14 +188,6 @@
         z-index: 999;
       }
 
-      .top-bar i {
-        display: block;
-        width: 100%;
-        height: 100%;
-        background: var(--acc);
-        transform: translateX(-100%);
-      }
-
       .top-bar.loading i {
         animation: sweep 1.2s infinite ease-in-out;
       }
@@ -322,6 +314,7 @@
       let live = null;
       let failures = 0;
       let timer = null;
+      let isFetching = false;
 
       async function getJSON(url, ms = 10000) {
         const ctl = new AbortController();
@@ -372,6 +365,7 @@
       const rtf = new Intl.RelativeTimeFormat("ru", { numeric: "auto" });
 
       function ago(date) {
+        if (!date || isNaN(date.getTime())) return "неизвестно когда";
         const s = Math.round((date.getTime() - Date.now()) / 1000);
         const a = Math.abs(s);
         if (a < 60) return "только что";
@@ -389,13 +383,13 @@
         const b = base || {};
         const doneBase = b.archived ?? ((b.streams?.archived || 0) + (b.videos?.archived || 0));
         const totalBase = b.total ?? ((b.streams?.total || 0) + (b.videos?.total || 0));
-        const done = live ?? doneBase;
-        const total = Math.max(totalBase, done);
-        const pct = base && total ? Math.min(100, Math.floor(done / total * 100)) : 0;
+        const done = live ?? (base ? doneBase : null);
+        const total = base ? Math.max(totalBase, done ?? 0) : null;
+        const pct = base && total ? Math.min(100, Math.floor((done ?? doneBase) / total * 100)) : 0;
 
-        $("done").textContent = done;
-        $("total").textContent = base ? total : "?";
-        $("left").textContent = base ? total - done : "?";
+        $("done").textContent = done !== null ? done : "…";
+        $("total").textContent = total !== null ? total : "…";
+        $("left").textContent = (total !== null && done !== null) ? Math.max(0, total - done) : "…";
         $("pct").textContent = pct;
         $("fill").style.width = pct + "%";
         $("pbar").setAttribute("aria-valuenow", pct);
@@ -431,7 +425,8 @@
         const upd = new Date(base.updated);
         const age = Date.now() - upd.getTime();
         const when = ago(upd);
-        $("upd").title = upd.toLocaleString("ru-RU");
+        $("upd").title = !isNaN(upd.getTime()) ? upd.toLocaleString("ru-RU") : "";
+
         if (failures) {
           status("err", "Часть данных не обновилась, показаны последние: " + when);
         } else if (base.state === "failed") {
@@ -444,13 +439,16 @@
       }
 
       async function tick() {
+        if (isFetching) return;
+        isFetching = true;
         clearTimeout(timer);
         setLoading(true);
+
         try {
           const [okB, okL] = await Promise.all([loadBase(), loadLive()]);
           failures = (okB && okL) ? 0 : failures + 1;
-          render();
         } finally {
+          isFetching = false;
           document.body.classList.remove("initial-load");
           setLoading(false);
           render();
@@ -460,8 +458,11 @@
       }
 
       document.addEventListener("visibilitychange", () => {
-        if (document.hidden) clearTimeout(timer);
-        else tick();
+        if (document.hidden) {
+          clearTimeout(timer);
+        } else {
+          tick();
+        }
       });
 
       tick();
