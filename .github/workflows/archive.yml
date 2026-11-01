@@ -37,6 +37,23 @@ jobs:
             && gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/$wid/enable" \
             || echo "WARN: keepalive не сработал"
 
+      # --- Максимальная очистка диска: освобождает ~60-65 ГБ ---
+      - name: Maximize disk space
+        run: |
+          echo "=== До очистки ==="
+          df -h /
+          # 1. Удаление тяжелых неиспользуемых сред (~35-40 ГБ)
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost
+          # 2. Удаление ненужных инструментов из toolcache (~8 ГБ)
+          sudo rm -rf /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/Java* /opt/hostedtoolcache/Ruby /opt/hostedtoolcache/go
+          # 3. Удаление предустановленных Docker-образов (~15 ГБ)
+          sudo docker image prune --all --force >/dev/null 2>&1 || true
+          # 4. Отключение и удаление swap (~4 ГБ)
+          sudo swapoff -a || true
+          sudo rm -f /mnt/swapfile /swapfile 2>/dev/null || true
+          echo "=== После очистки ==="
+          df -h /
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -57,12 +74,6 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-
-      # Быстрое освобождение ~35 ГБ диска (удаляем только два самых жирных каталога)
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android
-          df -h / | tail -n 1
 
       - name: Install
         run: |
@@ -116,7 +127,7 @@ jobs:
           esac
           echo "skip.txt: $(wc -l < skip.txt) строк, verified.txt: $(wc -l < verified.txt) строк"
 
-      # --- автоаудит: находит старые видео ниже 1080p и помечает на перезаливку только если на YouTube появилось лучшее качество ---
+      # --- автоаудит качества: находит видео ниже 1080p и помечает на перезаливку, только если на YT появилось лучшее качество ---
       - name: Audit quality
         shell: bash
         continue-on-error: true
