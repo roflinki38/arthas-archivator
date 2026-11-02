@@ -1,471 +1,893 @@
 <!doctype html>
 <html lang="ru">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Архив Папича</title>
-    <meta name="description" content="Прогресс архивации канала Папича на Internet Archive">
-    <meta name="color-scheme" content="light dark">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📼</text></svg>">
-    <style>
-      :root {
-        --bg: #fff;
-        --fg: #1a1a1a;
-        --mut: #6b7280;
-        --card: #f4f4f5;
-        --bar: #e4e4e7;
-        --acc: #2563eb;
-        --red: #dc2626;
-        --ok: #10b981;
-        --warn: #f59e0b;
-        --s1: 8px;
-        --s2: 16px;
-        --s3: 24px;
-        --s4: 32px;
-      }
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Архив Папича</title>
+<meta name="description" content="Все стримы и видео Папича, сохранённые на Internet Archive. Смотрите без YouTube.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='%23ff5a3c'/></svg>">
+<style>
+:root{
+  --bg:#141414;--s1:#1b1b1b;--s2:#242424;--hov:#2c2c2c;--fg:#ededeb;--mut:rgba(237,237,235,.6);--line:rgba(255,255,255,.09);
+  --acc:#ff5a3c;--ok:#72BC8F;--warn:#DE9255;--err:#E97366;
+}
+@media (prefers-color-scheme:light){:root{
+  --bg:#fbfaf8;--s1:#fff;--s2:#f1f0ee;--hov:#e9e8e5;--fg:#2c2c2b;--mut:#6b6863;--line:#e6e5e3;
+  --acc:#d6361c;--ok:#2f8a5a;--warn:#b5651d;--err:#c8402f;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+a{color:inherit;text-decoration:none}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
+.wrap{padding:0 32px}
 
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #111;
-          --fg: #eee;
-          --mut: #9ca3af;
-          --card: #1c1c1e;
-          --bar: #2e2e31;
-          --acc: #60a5fa;
-          --red: #f87171;
-        }
-      }
+/* шапка */
+.top{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:24px;height:60px}
+.brand{font-weight:700;font-size:17px;white-space:nowrap}
+.search{flex:1;max-width:480px;margin-left:auto;position:relative}
+.search input{width:100%;height:40px;padding:0 36px 0 14px;border-radius:8px;border:1px solid var(--line);background:var(--s1);font-size:15px}
+.search input::placeholder{color:var(--mut)}
+.search input:focus{outline:none;border-color:var(--mut)}
+.search input::-webkit-search-cancel-button{display:none}
+.search .clr{position:absolute;right:2px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;background:none;color:var(--mut);font-size:20px;display:none}
+.search input:not(:placeholder-shown)~.clr{display:block}
+.toplink{color:var(--mut);font-size:14px;white-space:nowrap}
+.toplink:hover{color:var(--fg)}
 
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--fg);
-        font: 16px/1.5 system-ui, sans-serif;
-        display: grid;
-        place-items: center;
-        min-height: 100vh;
-      }
+/* вступление */
+.intro{padding:48px 0 8px;max-width:640px}
+.intro h1{margin:0 0 8px;font-size:32px;line-height:1.15;letter-spacing:-.02em;font-weight:700}
+.intro p{margin:0;color:var(--mut)}
+.prog{margin-top:24px;font-size:14px;color:var(--mut)}
+.prog b{color:var(--fg);font-weight:600}
+.bar{height:4px;border-radius:2px;background:var(--s2);margin:8px 0;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .8s}
+.prog a{color:var(--fg);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.prog a:hover{text-decoration-color:currentColor}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ok);margin-right:6px;vertical-align:2px}
+.dot.err{background:var(--err)}.dot.stale{background:var(--warn)}.dot.wait{background:var(--mut)}
 
-      main {
-        width: min(560px, 92vw);
-        padding: var(--s4) 0;
-      }
+/* секции */
+.sec{padding:32px 0}
+.sec-h{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin:0 0 20px}
+.sec-h h2{margin:0;font-size:20px;font-weight:700}
+.count{color:var(--mut);font-size:14px}
+.sp{flex:1}
+.tabs{display:flex;gap:20px}
+.tabs button{border:0;background:none;padding:6px 0;font-size:15px;color:var(--mut);border-bottom:2px solid transparent}
+.tabs button:hover{color:var(--fg)}
+.tabs button[aria-checked=true]{color:var(--fg);border-bottom-color:var(--fg)}
+.sel{border:0;background:none;font-size:15px;color:var(--mut);cursor:pointer;padding:6px 0}
+.sel:hover{color:var(--fg)}
+.link-btn{border:0;background:none;color:var(--mut);padding:6px 0;font-size:14px}
+.link-btn:hover{color:var(--fg)}
+.btn{display:inline-flex;align-items:center;height:40px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--s1);font-size:15px}
+.btn:hover{background:var(--s2)}
 
-      .hero {
-        font-size: clamp(30px, 9vw, 56px);
-        font-weight: 900;
-        line-height: 1.05;
-        color: var(--red);
-        margin: 0 0 var(--s1);
-        text-transform: uppercase;
-      }
+/* карточки */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:28px 16px}
+.vcard{display:block}
+.thumb{position:relative;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:var(--s2)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.vcard:hover .thumb img{opacity:.88}
+.tag{position:absolute;right:6px;bottom:8px;padding:1px 6px;border-radius:4px;background:rgba(0,0,0,.75);color:#fff;font-size:12px;font-weight:500}
+.watched{position:absolute;left:0;bottom:0;height:3px;background:var(--acc)}
+.watched-bg{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.3)}
+.vtitle{margin:10px 0 2px;font-size:15px;font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.vmeta{color:var(--mut);font-size:13px}
+.skel .thumb,.skel .line{animation:pulse 1.4s infinite}
+.skel .line{height:12px;border-radius:3px;background:var(--s2);margin-top:10px}
+@keyframes pulse{50%{opacity:.5}}
+.empty{padding:56px 16px;text-align:center;color:var(--mut)}
+.empty b{display:block;color:var(--fg);font-size:17px;margin-bottom:4px}
+.empty .btn{margin-top:16px;color:var(--fg)}
+#sentinel{height:1px}
 
-      .sub {
-        color: var(--mut);
-        margin: 0 0 var(--s4);
-      }
+.rowscroll{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,280px);gap:16px;overflow-x:auto;padding-bottom:6px}
+.rowscroll>*{position:relative}
+.rm{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:6px;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:17px;opacity:0;z-index:2}
+.rowscroll>*:hover .rm,.rm:focus-visible{opacity:1}
 
-      .big {
-        font-size: 44px;
-        font-weight: 700;
-        line-height: 1.1;
-        font-variant-numeric: tabular-nums;
-        margin: 0;
-      }
+/* страница видео */
+.watch{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:32px;padding:24px 0 48px}
+.player{position:relative;aspect-ratio:16/9;max-height:calc(100vh - 170px);width:100%;background:#000;border-radius:8px;overflow:hidden}
+.player iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.w-title{font-size:22px;line-height:1.3;font-weight:700;margin:16px 0 4px;word-break:break-word}
+.w-bar{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;color:var(--mut);font-size:14px}
+.acts{display:flex;gap:16px;flex-wrap:wrap;margin-left:auto}
+.acts a,.acts button{border:0;background:none;padding:6px 0;color:var(--mut);font-size:14px}
+.acts a:hover,.acts button:hover{color:var(--fg)}
+.desc{margin-top:16px;padding-top:16px;border-top:1px solid var(--line);word-break:break-word}
+.desc .txt{white-space:pre-wrap;font-size:15px;max-width:720px}
+.desc.clamp .txt{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.desc .txt a{color:var(--acc)}
+.desc .txt a:hover{text-decoration:underline}
+.side-h{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 12px}
+.side-h h2{margin:0;font-size:16px;font-weight:700}
+.switch{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mut);cursor:pointer}
+.switch input{margin:0;accent-color:var(--acc)}
+.side{display:flex;flex-direction:column;gap:12px}
+.side .vcard{display:grid;grid-template-columns:150px 1fr;gap:10px}
+.side .vtitle{margin:0 0 2px;font-size:14px}
+.side .vmeta{font-size:12px}
 
-      .big small {
-        font-size: 20px;
-        font-weight: 400;
-        color: var(--mut);
-      }
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--s1);color:var(--fg);padding:24px;max-width:min(440px,calc(100vw - 32px));width:100%}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+dialog h2{margin:0 0 12px;font-size:18px}
+.dlg-x{position:absolute;top:10px;right:10px;width:36px;height:36px;border:0;border-radius:6px;background:none;font-size:20px;color:var(--mut)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px}
+kbd.k{display:inline-block;min-width:24px;text-align:center;padding:1px 6px;border-radius:4px;border:1px solid var(--line);background:var(--s2);font-size:12px;margin-right:3px}
 
-      .bar {
-        height: 12px;
-        background: var(--bar);
-        border-radius: 6px;
-        overflow: hidden;
-        margin: var(--s2) 0 var(--s1);
-      }
+footer{border-top:1px solid var(--line);margin-top:24px;padding:24px 0 40px;color:var(--mut);font-size:13px}
+footer a{text-decoration:underline;text-underline-offset:3px}
 
-      .bar i {
-        display: block;
-        height: 100%;
-        background: var(--acc);
-        width: 0;
-        transition: width .6s;
-      }
+/* ---------- Custom player ---------- */
+.watch.theater .player{aspect-ratio:auto;height:min(56.25vw,calc(100vh - 140px));border-radius:0}
+.yp{position:absolute;inset:0;background:#000;color:#fff;user-select:none;-webkit-user-select:none;font:13px/1 Roboto,system-ui,sans-serif;overflow:hidden;--yr:#f00}
+.yp video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+.yp.idle:not(.paused){cursor:none}
+.yp-ctrl{position:absolute;left:0;right:0;bottom:0;padding:0 12px 4px;background:linear-gradient(transparent,rgba(0,0,0,.75));padding-top:60px;transition:opacity .25s;z-index:3}
+.yp.idle:not(.paused):not(.menu-open) .yp-ctrl{opacity:0;pointer-events:none}
+.yp-prog{position:relative;height:16px;display:flex;align-items:center;cursor:pointer;touch-action:none}
+.yp-rail{position:relative;width:100%;height:3px;background:rgba(255,255,255,.25);transition:height .12s;border-radius:2px}
+.yp-prog:hover .yp-rail,.yp.seeking .yp-rail{height:5px}
+.yp-rail>div{position:absolute;left:0;top:0;bottom:0;border-radius:2px}
+.yp-buf{background:rgba(255,255,255,.45)}
+.yp-hov{background:rgba(255,255,255,.5);opacity:0}
+.yp-prog:hover .yp-hov{opacity:1}
+.yp-played{background:var(--yr)}
+.yp-knob{position:absolute;top:50%;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;background:var(--yr);transform:scale(0);transition:transform .12s}
+.yp-prog:hover .yp-knob,.yp.seeking .yp-knob{transform:scale(1)}
+.yp-tip{position:absolute;bottom:22px;padding:5px 8px;border-radius:4px;background:rgba(28,28,28,.9);font-weight:500;transform:translateX(-50%);opacity:0;pointer-events:none;white-space:nowrap}
+.yp-prog:hover .yp-tip,.yp.seeking .yp-tip{opacity:1}
+.yp-row{display:flex;align-items:center;height:48px}
+.yp-btn{width:44px;height:44px;display:grid;place-items:center;border:0;background:none;color:#fff;opacity:.9;border-radius:50%;flex:none;position:relative}
+.yp-btn:hover{opacity:1}
+.yp-btn svg{width:26px;height:26px;fill:currentColor;filter:drop-shadow(0 0 2px rgba(0,0,0,.4))}
+.yp-btn[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:52px;left:50%;transform:translateX(-50%);padding:6px 8px;border-radius:4px;background:rgba(28,28,28,.9);white-space:nowrap;font-size:12px;pointer-events:none}
+.yp-row .yp-btn:last-child[data-tip]:hover::after{left:auto;right:0;transform:none}
+.yp-vol{display:flex;align-items:center}
+.yp-vslider{width:0;overflow:hidden;transition:width .2s;display:flex;align-items:center;height:44px}
+.yp-vol:hover .yp-vslider,.yp-vol:focus-within .yp-vslider{width:64px;margin-right:8px}
+.yp-vslider input{width:60px;margin-left:4px;accent-color:#fff;cursor:pointer}
+.yp-time{padding:0 8px;font-variant-numeric:tabular-nums;white-space:nowrap;text-shadow:0 0 2px rgba(0,0,0,.5)}
+.yp-sp{flex:1}
+.yp-badge{position:absolute;top:8px;right:6px;background:var(--yr);font-size:8px;font-weight:700;padding:1px 3px;border-radius:2px;line-height:1.2}
+.yp-menu{position:absolute;right:12px;bottom:64px;min-width:240px;max-height:calc(100% - 80px);overflow:auto;padding:8px 0;border-radius:12px;background:rgba(28,28,28,.92);backdrop-filter:blur(8px);z-index:4;font-size:14px}
+.yp-mi{display:flex;align-items:center;gap:16px;width:100%;padding:10px 16px;border:0;background:none;color:#fff;text-align:left}
+.yp-mi:hover{background:rgba(255,255,255,.1)}
+.yp-mi span:last-child{margin-left:auto;opacity:.75}
+.yp-mi.on::before{content:"✓";width:14px}
+.yp-mi.opt:not(.on)::before{content:"";width:14px}
+.yp-mh{border-bottom:1px solid rgba(255,255,255,.2);margin-bottom:8px;font-weight:500}
+.yp-center{position:absolute;left:50%;top:50%;width:72px;height:72px;margin:-36px 0 0 -36px;border-radius:50%;background:rgba(0,0,0,.55);display:grid;place-items:center;opacity:0;pointer-events:none;z-index:2}
+.yp-center svg{width:40px;height:40px;fill:#fff}
+.yp-center.go{animation:yp-pop .5s ease-out}
+@keyframes yp-pop{0%{opacity:1;transform:scale(.8)}100%{opacity:0;transform:scale(1.4)}}
+.yp-bigplay{position:absolute;left:50%;top:50%;width:68px;height:48px;margin:-24px 0 0 -34px;border:0;border-radius:14px;background:var(--yr);display:grid;place-items:center;z-index:2;transition:transform .15s}
+.yp-bigplay:hover{transform:scale(1.08)}
+.yp-bigplay svg{width:30px;height:30px;fill:#fff}
+.yp.started .yp-bigplay{display:none}
+.yp-spin{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:yp-spin .8s linear infinite;display:none;z-index:2;pointer-events:none}
+.yp.loading.started .yp-spin{display:block}
+@keyframes yp-spin{to{transform:rotate(360deg)}}
+.yp-toast{position:absolute;top:12%;left:50%;transform:translateX(-50%);padding:10px 16px;border-radius:8px;background:rgba(0,0,0,.65);font-size:15px;font-weight:500;opacity:0;transition:opacity .3s;pointer-events:none;z-index:2}
+.yp-toast.on{opacity:1;transition:none}
+.yp-seekfx{position:absolute;top:0;bottom:0;width:38%;display:grid;place-items:center;font-size:14px;font-weight:600;opacity:0;pointer-events:none;z-index:2;background:radial-gradient(circle at var(--x,50%) 50%,rgba(255,255,255,.18),transparent 70%)}
+.yp-seekfx.l{left:0;--x:30%}.yp-seekfx.r{right:0;--x:70%}
+.yp-seekfx.go{animation:yp-fade .6s ease-out}
+@keyframes yp-fade{0%{opacity:1}100%{opacity:0}}
+.yp-title{position:absolute;top:0;left:0;right:0;padding:16px 18px 50px;background:linear-gradient(rgba(0,0,0,.7),transparent);font-size:17px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .25s;z-index:3;pointer-events:none;display:none}
+.yp.fs .yp-title{display:block}
+.yp.idle:not(.paused) .yp-title{opacity:0}
+.yp-end{position:absolute;inset:0;background:rgba(0,0,0,.75);display:grid;place-items:center;z-index:5;text-align:center}
+.yp-end img{width:min(320px,60vw);aspect-ratio:16/9;object-fit:cover;border-radius:10px;display:block;margin:10px auto}
+.yp-end .t{max-width:min(420px,80vw);font-size:16px;font-weight:600;line-height:1.3;margin:0 auto 14px}
+.yp-end .b{display:flex;gap:10px;justify-content:center}
+.yp-end button{padding:9px 18px;border-radius:18px;border:0;font-weight:600;background:rgba(255,255,255,.15);color:#fff}
+.yp-end button.p{background:#fff;color:#000}
+@media (max-width:640px){.yp-hide-sm{display:none}.yp-btn{width:38px}.yp-time{padding:0 4px;font-size:12px}}
 
-      .mut {
-        color: var(--mut);
-        font-size: 14px;
-      }
+.yp{--yr:var(--acc)}
+.yp-bigplay{border-radius:50%;width:64px;height:64px;margin:-32px 0 0 -32px;background:rgba(0,0,0,.6)}
+.watch.theater{grid-template-columns:minmax(0,1fr);padding-top:0}
+.watch.theater .player{margin:0 -32px;border-radius:0}
 
-      .stat {
-        width: fit-content;
-        min-width: 150px;
-        margin: var(--s3) 0;
-      }
+@media (max-width:1000px){.watch{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:640px){
+  .wrap{padding:0 16px}
+  .top .wrap{gap:12px}
+  .toplink{display:none}
+  .intro{padding-top:32px}.intro h1{font-size:26px}
+  .grid{grid-template-columns:1fr;gap:24px}
+  .player,.watch.theater .player{margin:0 -16px;border-radius:0}
+  .watch{padding-top:0}
+  .acts{margin-left:0}
+  .side .vcard{grid-template-columns:140px 1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
 
-      .card {
-        background: var(--card);
-        border-radius: 10px;
-        padding: var(--s2);
-      }
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#/">Архив Папича</a>
+    <form class="search" id="sform" role="search">
+      <input id="q" type="search" placeholder="Поиск" aria-label="Поиск по архиву" autocomplete="off">
+      <button type="button" class="clr" id="qclr" aria-label="Очистить поиск">×</button>
+    </form>
+    <a class="toplink" href="https://archive.org/details/@alnyx" target="_blank" rel="noopener">archive.org ↗</a>
+  </div>
+</header>
 
-      .card b {
-        display: block;
-        margin-top: 4px;
-        font-size: 24px;
-        font-variant-numeric: tabular-nums;
-      }
-
-      .now {
-        margin: var(--s3) 0;
-      }
-
-      .now b {
-        display: block;
-        font-size: 17px;
-        margin: 4px 0 var(--s2);
-        word-break: break-word;
-      }
-
-      .now a {
-        color: var(--acc);
-        margin-right: var(--s2);
-        font-size: 14px;
-        text-decoration: none;
-      }
-
-      .now a:hover {
-        text-decoration: underline;
-      }
-
-      a:focus-visible,
-      .btn:focus-visible {
-        outline: 2px solid var(--acc);
-        outline-offset: 2px;
-      }
-
-      .btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--s1);
-        margin-top: var(--s3);
-        padding: var(--s2) var(--s3);
-        background: var(--card);
-        color: var(--fg);
-        border: 1px solid var(--bar);
-        border-radius: 10px;
-        font-size: 15px;
-        font-weight: 600;
-        text-decoration: none;
-        transition: border-color .15s, color .15s;
-      }
-
-      .btn:hover {
-        border-color: var(--acc);
-        color: var(--acc);
-      }
-
-      .status {
-        display: grid;
-        gap: 4px;
-      }
-
-      [hidden] {
-        display: none !important;
-      }
-
-      .top-bar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 3px;
-        overflow: hidden;
-        z-index: 999;
-      }
-
-      .top-bar.loading i {
-        animation: sweep 1.2s infinite ease-in-out;
-      }
-
-      @keyframes sweep {
-        0% { transform: translateX(-100%); }
-        50% { transform: translateX(0); }
-        100% { transform: translateX(100%); }
-      }
-
-      .spinner {
-        display: inline-block;
-        width: 11px;
-        height: 11px;
-        border: 2px solid var(--mut);
-        border-top-color: var(--acc);
-        border-radius: 50%;
-        animation: spin .7s linear infinite;
-        vertical-align: -1px;
-        margin-right: 6px;
-      }
-
-      @keyframes spin {
-        to { transform: rotate(360deg); }
-      }
-
-      .dot {
-        display: inline-block;
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: var(--ok);
-        margin-right: 6px;
-        vertical-align: 1px;
-      }
-
-      .dot.err { background: #ef4444; }
-      .dot.stale { background: var(--warn); }
-
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: .3; }
-      }
-
-      .initial-load #done,
-      .initial-load #total,
-      .initial-load #left {
-        display: inline-block;
-        animation: pulse 1.2s infinite ease-in-out;
-      }
-
-      .initial-load .bar i {
-        width: 35% !important;
-        animation: bar-sweep 1.3s infinite ease-in-out;
-      }
-
-      @keyframes bar-sweep {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(300%); }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        * {
-          animation: none !important;
-          transition: none !important;
-        }
-      }
-    </style>
-  </head>
-
-  <body class="initial-load">
-    <div id="top-bar" class="top-bar loading" aria-hidden="true"><i></i></div>
-
-    <main>
-      <h1 class="hero">Пожизненный бан неизбежен</h1>
-      <p class="sub">Автоматическая архивация канала Папича</p>
-
-      <div class="big">
-        <span id="done">…</span>
-        <small>из <span id="total">…</span> видео</small>
+<div id="home">
+  <div class="wrap">
+    <section class="intro" id="hero">
+      <h1>Пожизненный бан неизбежен</h1>
+      <p>Стримы и ролики Папича автоматически сохраняются на Internet Archive.</p>
+      <div class="prog" aria-live="polite">
+        Сохранено <b data-p="done">—</b> из <b data-p="total">—</b> видео
+        <div class="bar" role="progressbar" aria-label="Прогресс архивации" aria-valuemin="0" aria-valuemax="100" data-p="bar"><i data-p="fill"></i></div>
+        <span data-p="status"><span class="dot wait"></span>загружаю…</span><span data-p="nowbox" hidden> · сейчас качается <a data-p="nowlink" target="_blank" rel="noopener"></a></span>
       </div>
-      <div class="bar" id="pbar" role="progressbar" aria-label="Прогресс архивации" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-        <i id="fill"></i>
-      </div>
-      <div class="mut"><span id="pct">0</span>% · осталось <span id="left">…</span></div>
+    </section>
 
-      <div class="card stat" id="skcard" hidden>Пропущено<b id="sk">0</b></div>
+    <section class="sec" id="contSec" hidden>
+      <div class="sec-h"><h2>Вы смотрели</h2><span class="sp"></span><button class="link-btn" type="button" id="histClr">очистить</button></div>
+      <div class="rowscroll" id="contRow"></div>
+    </section>
 
-      <div class="card now" id="nowcard" hidden>
-        <div class="mut" id="stage"></div>
-        <b id="vtitle"></b>
-        <a id="yt" target="_blank" rel="noopener noreferrer">▶ Открыть на YouTube</a>
-        <a id="ia" target="_blank" rel="noopener noreferrer" hidden>Айтем на archive.org</a>
-      </div>
-
-      <div class="status">
-        <div class="mut" id="now" aria-live="polite"></div>
-        <div class="mut" id="upd" aria-live="polite">
-          <span class="spinner"></span> Загрузка данных…
+    <section class="sec" id="all">
+      <div class="sec-h">
+        <h2 id="listTitle">Все видео</h2><span class="count" id="count"></span>
+        <span class="sp"></span>
+        <div class="tabs" role="radiogroup" aria-label="Сортировка" id="seg">
+          <button type="button" role="radio" aria-checked="true" data-sort="date desc">новые</button>
+          <button type="button" role="radio" aria-checked="false" data-sort="downloads desc">популярные</button>
+          <button type="button" role="radio" aria-checked="false" data-sort="date asc">старые</button>
         </div>
+        <select class="sel" id="year" aria-label="Год"><option value="">все годы</option></select>
       </div>
+      <div class="grid" id="grid"></div>
+      <div class="empty" id="gmsg" hidden></div>
+      <div id="sentinel"></div>
+    </section>
+  </div>
+</div>
 
-      <a class="btn" href="https://archive.org/details/@alnyx" target="_blank" rel="noopener noreferrer">
-        <span>Коллекция на Internet Archive (@alnyx)</span>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-          <polyline points="15 3 21 3 21 9"></polyline>
-          <line x1="10" y1="14" x2="21" y2="3"></line>
-        </svg>
-      </a>
-    </main>
+<div id="watchview" hidden>
+  <div class="wrap">
+    <div class="watch" id="watch">
+      <div class="w-main">
+        <div class="player" id="player"></div>
+        <h1 class="w-title" id="wtitle"></h1>
+        <div class="w-bar">
+          <span id="wmeta"></span>
+          <div class="acts">
+            <button type="button" id="share">скопировать ссылку</button>
+            <a id="wyt" target="_blank" rel="noopener" hidden>YouTube ↗</a>
+            <a id="wia" target="_blank" rel="noopener">archive.org ↗</a>
+          </div>
+        </div>
+        <div class="desc clamp" id="desc"><div class="txt" id="wdesc"></div><button class="link-btn" type="button" id="more" hidden>ещё</button></div>
+      </div>
+      <aside>
+        <div class="side-h"><h2>Дальше</h2><label class="switch"><input type="checkbox" id="autoplay"> автоплей</label></div>
+        <div class="side" id="side"></div>
+      </aside>
+    </div>
+  </div>
+</div>
 
-    <script>
-      const $ = id => document.getElementById(id);
-      const CREATOR = "Arthas (Папич)";
-      const POLL_MS = 30000, MAX_BACKOFF_MS = 300000, STALE_MS = 15 * 60 * 1000;
+<footer>
+  <div class="wrap">Фанатский архив. Видео лежат на <a href="https://archive.org/details/@alnyx" target="_blank" rel="noopener">Internet Archive</a>. Горячие клавиши — <kbd class="k">?</kbd></div>
+</footer>
 
-      const gh = location.hostname.endsWith("github.io");
-      const OWNER = gh ? location.hostname.split(".")[0] : "roflinki38";
-      const REPO = (gh && location.pathname.split("/")[1]) || "arthas-archivator";
-      const STATUS_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/status/status.json`;
+<dialog id="keysDlg" aria-labelledby="keysH">
+  <button class="dlg-x" type="button" aria-label="Закрыть" data-close>×</button>
+  <h2 id="keysH">Горячие клавиши</h2>
+  <div class="keys">
+    <span><kbd class="k">K</kbd><kbd class="k">␣</kbd></span><span>пауза</span>
+    <span><kbd class="k">J</kbd><kbd class="k">L</kbd></span><span>±10 секунд</span>
+    <span><kbd class="k">←</kbd><kbd class="k">→</kbd></span><span>±5 секунд</span>
+    <span><kbd class="k">↑</kbd><kbd class="k">↓</kbd></span><span>громкость</span>
+    <span><kbd class="k">M</kbd></span><span>без звука</span>
+    <span><kbd class="k">F</kbd></span><span>полный экран</span>
+    <span><kbd class="k">T</kbd></span><span>широкий режим</span>
+    <span><kbd class="k">&lt;</kbd><kbd class="k">&gt;</kbd></span><span>скорость</span>
+    <span><kbd class="k">0</kbd>–<kbd class="k">9</kbd></span><span>перейти к 0–90%</span>
+    <span><kbd class="k">⇧</kbd><kbd class="k">N</kbd></span><span>следующее видео</span>
+    <span><kbd class="k">/</kbd></span><span>поиск</span>
+  </div>
+</dialog>
 
-      let base = null;
-      let live = null;
-      let failures = 0;
-      let timer = null;
-      let isFetching = false;
+<script>
+const $ = id => document.getElementById(id);
+const CREATOR = "Arthas (Папич)";
+const BASE_Q = 'creator:"' + CREATOR + '" AND NOT subject:papich-yt-archive-incomplete';
+const ROWS = 24;
+const FIELDS = ["identifier", "title", "date", "addeddate", "downloads"];
+const SITE = "Архив Папича";
 
-      async function getJSON(url, ms = 10000) {
-        const ctl = new AbortController();
-        const t = setTimeout(() => ctl.abort(), ms);
-        try {
-          const r = await fetch(url, { signal: ctl.signal, cache: "no-store" });
-          if (!r.ok) throw new Error("HTTP " + r.status);
-          return await r.json();
-        } finally {
-          clearTimeout(t);
-        }
-      }
+/* ---------- helpers ---------- */
+async function getJSON(url, ms = 15000) {
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), ms);
+  try { const r = await fetch(url, { signal: ctl.signal, cache: "no-store" }); if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); }
+  finally { clearTimeout(t); }
+}
+const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+const thumbUrl = id => "https://archive.org/services/img/" + encodeURIComponent(id);
+const nf = new Intl.NumberFormat("ru");
+const rtf = new Intl.RelativeTimeFormat("ru", { numeric: "auto" });
+function ago(d) {
+  d = d instanceof Date ? d : new Date(d);
+  if (isNaN(d)) return "";
+  const s = (d - Date.now()) / 1000, a = Math.abs(s);
+  if (a < 60) return "только что";
+  if (a < 3600) return rtf.format(Math.round(s / 60), "minute");
+  if (a < 86400) return rtf.format(Math.round(s / 3600), "hour");
+  if (a < 86400 * 30) return rtf.format(Math.round(s / 86400), "day");
+  if (a < 86400 * 365) return rtf.format(Math.round(s / 86400 / 30), "month");
+  return rtf.format(Math.round(s / 86400 / 365), "year");
+}
+const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? b : c; };
+const views = n => n == null ? "" : new Intl.NumberFormat("ru", { notation: "compact" }).format(n) + " " + plural(n, "просмотр", "просмотра", "просмотров");
+const first = v => Array.isArray(v) ? v[0] : v;
+const dateOf = d => first(d.date) || first(d.addeddate);
+const shortDate = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" }); };
+const fmtT = s => { s = Math.max(0, Math.floor(s)); const h = s / 3600 | 0, m = (s % 3600) / 60 | 0, x = String(s % 60).padStart(2, "0"); return h ? h + ":" + String(m).padStart(2, "0") + ":" + x : m + ":" + x; };
 
-      function setLoading(on) {
-        $("top-bar").classList.toggle("loading", on);
-        if (on) {
-          if (!base) document.body.classList.add("initial-load");
-          $("upd").replaceChildren(
-            Object.assign(document.createElement("span"), { className: "spinner" }),
-            document.createTextNode(base ? "Обновление данных…" : "Загрузка данных…")
-          );
-        }
-      }
+function search(q, sort, page, rows = ROWS) {
+  const p = new URLSearchParams({ q, rows, page, output: "json" });
+  FIELDS.forEach(f => p.append("fl[]", f));
+  p.append("sort[]", sort);
+  return getJSON("https://archive.org/advancedsearch.php?" + p).then(j => j.response);
+}
 
-      async function loadBase() {
-        try {
-          base = await getJSON(STATUS_URL + "?t=" + Date.now());
-          return true;
-        } catch (e) {
-          return false;
-        }
-      }
+/* ---------- история просмотра ---------- */
+const HKEY = "pt:hist";
+let hist = new Map();
+try { hist = new Map(JSON.parse(localStorage.getItem(HKEY) || "[]").map(x => [x.id, x])); } catch (e) {}
+function saveHist(entry) {
+  hist.delete(entry.id); hist.set(entry.id, { ...entry, at: Date.now() });
+  while (hist.size > 50) hist.delete(hist.keys().next().value);
+  localStorage.setItem(HKEY, JSON.stringify([...hist.values()]));
+}
+function removeHist(id) { hist.delete(id); localStorage.removeItem("pos:" + id); localStorage.setItem(HKEY, JSON.stringify([...hist.values()])); }
 
-      async function loadLive() {
-        const q = new URLSearchParams({
-          q: 'creator:"' + CREATOR + '" AND NOT subject:papich-yt-archive-incomplete',
-          rows: 0,
-          output: "json"
-        });
-        try {
-          live = (await getJSON("https://archive.org/advancedsearch.php?" + q)).response.numFound;
-          return true;
-        } catch (e) {
-          return false;
-        }
-      }
+/* ---------- карточки ---------- */
+const PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+function card(d, opts = {}) {
+  const id = d.identifier, title = first(d.title) || id, h = hist.get(id);
+  const a = el("a", { className: "vcard", href: "#/watch/" + encodeURIComponent(id), title });
+  const th = el("div", { className: "thumb" }, el("img", { src: thumbUrl(id), alt: "", loading: "lazy", decoding: "async" }));
+  if (opts.left && h) th.append(el("span", { className: "tag", textContent: "осталось " + fmtT(h.d - h.t) }));
+  if (h && h.d) th.append(el("div", { className: "watched-bg" }), el("div", { className: "watched", style: "width:" + Math.min(100, h.t / h.d * 100) + "%" }));
+  a.append(th, el("div", { className: "info" },
+    el("div", { className: "vtitle", textContent: title }),
+    el("div", { className: "vmeta", textContent: [shortDate(dateOf(d)), views(d.downloads)].filter(Boolean).join(" · ") })));
+  return a;
+}
+const skeleton = () => el("div", { className: "vcard skel", ariaHidden: "true" }, el("div", { className: "thumb" }), el("div", { className: "line" }), el("div", { className: "line", style: "width:55%" }));
 
-      const rtf = new Intl.RelativeTimeFormat("ru", { numeric: "auto" });
+function renderContinue() {
+  const items = [...hist.values()].reverse().filter(x => x.d && x.t > 20 && x.t < x.d - 20).slice(0, 10);
+  $("contSec").hidden = !items.length || !!state.term;
+  $("contRow").replaceChildren(...items.map(x => {
+    const wrap = el("div");
+    const rm = el("button", { className: "rm", type: "button", ariaLabel: "Убрать из истории", textContent: "×", onclick: e => { e.preventDefault(); removeHist(x.id); renderContinue(); } });
+    wrap.append(card({ identifier: x.id, title: x.title, date: x.date, downloads: x.downloads }, { left: true }), rm);
+    return wrap;
+  }));
+}
+$("histClr").onclick = () => { [...hist.keys()].forEach(id => localStorage.removeItem("pos:" + id)); hist.clear(); localStorage.removeItem(HKEY); renderContinue(); };
 
-      function ago(date) {
-        if (!date || isNaN(date.getTime())) return "неизвестно когда";
-        const s = Math.round((date.getTime() - Date.now()) / 1000);
-        const a = Math.abs(s);
-        if (a < 60) return "только что";
-        if (a < 3600) return rtf.format(Math.round(s / 60), "minute");
-        if (a < 86400) return rtf.format(Math.round(s / 3600), "hour");
-        return rtf.format(Math.round(s / 86400), "day");
-      }
+/* ---------- лента ---------- */
+const state = { sort: "date desc", term: "", year: "", page: 0, total: Infinity, loading: false, gen: 0 };
+const yearSel = $("year");
+for (let y = new Date().getFullYear(); y >= 2012; y--) yearSel.append(el("option", { value: y, textContent: y }));
 
-      function status(cls, text) {
-        const dot = Object.assign(document.createElement("span"), { className: "dot " + cls });
-        $("upd").replaceChildren(dot, document.createTextNode(text));
-      }
+function buildQuery() {
+  let q = BASE_Q;
+  const t = state.term.trim().replace(/["\\()\[\]:]/g, " ").split(/\s+/).filter(Boolean);
+  if (t.length) q += " AND (" + t.map(w => 'title:"' + w + '"').join(" AND ") + ")";
+  if (state.year) q += " AND date:[" + state.year + "-01-01 TO " + state.year + "-12-31]";
+  return q;
+}
 
-      function render() {
-        const b = base || {};
-        const doneBase = b.archived ?? ((b.streams?.archived || 0) + (b.videos?.archived || 0));
-        const totalBase = b.total ?? ((b.streams?.total || 0) + (b.videos?.total || 0));
-        const done = live ?? (base ? doneBase : null);
-        const total = base ? Math.max(totalBase, done ?? 0) : null;
-        const pct = base && total ? Math.min(100, Math.floor((done ?? doneBase) / total * 100)) : 0;
+function resetGrid() {
+  state.page = 0; state.total = Infinity; state.gen++; state.loading = false;
+  $("grid").replaceChildren(); $("gmsg").hidden = true; $("count").textContent = "";
+  $("listTitle").textContent = state.term ? "«" + state.term + "»" : state.year ? state.year + " год" : "Все видео";
+  loadMore();
+}
 
-        $("done").textContent = done !== null ? done : "…";
-        $("total").textContent = total !== null ? total : "…";
-        $("left").textContent = (total !== null && done !== null) ? Math.max(0, total - done) : "…";
-        $("pct").textContent = pct;
-        $("fill").style.width = pct + "%";
-        $("pbar").setAttribute("aria-valuenow", pct);
-        $("skcard").hidden = !(base && base.skipped);
-        if (base && base.skipped) $("sk").textContent = base.skipped;
-        if (base) document.title = `${pct}% · Архив Папича`;
+function showEmpty(title, text, btnText, fn) {
+  const m = $("gmsg");
+  m.replaceChildren(el("b", { textContent: title }), text);
+  if (btnText) m.append(el("br"), el("button", { className: "btn", type: "button", textContent: btnText, onclick: fn }));
+  m.hidden = false;
+}
 
-        if (!base) {
-          $("now").textContent = "";
-          $("nowcard").hidden = true;
-          status("err", failures ? "Не удалось загрузить данные, повторяю…" : "Данных о запуске пока нет.");
-          return;
-        }
+async function loadMore() {
+  if (state.loading || state.page * ROWS >= state.total) return;
+  state.loading = true;
+  const gen = state.gen, grid = $("grid");
+  const sk = Array.from({ length: state.page ? 8 : 12 }, skeleton); grid.append(...sk);
+  try {
+    const r = await search(buildQuery(), state.sort, state.page + 1);
+    if (gen !== state.gen) return;
+    sk.forEach(s => s.remove());
+    state.page++; state.total = r.numFound;
+    $("count").textContent = nf.format(r.numFound);
+    grid.append(...r.docs.map(d => card(d)));
+    if (!r.numFound) {
+      if (state.term || state.year) showEmpty("Ничего не нашлось", "Попробуйте другие слова или уберите год.", "Сбросить", () => { yearSel.value = ""; state.year = ""; location.hash = "#/"; if (!state.term) resetGrid(); });
+      else showEmpty("Пока пусто", "Видео ещё не загрузились.");
+    }
+  } catch (e) {
+    if (gen !== state.gen) return;
+    sk.forEach(s => s.remove());
+    showEmpty("Не загрузилось", "Internet Archive не ответил.", "Попробовать ещё раз", () => { $("gmsg").hidden = true; loadMore(); });
+  } finally {
+    if (gen === state.gen) state.loading = false;
+    requestAnimationFrame(() => { if (!$("home").hidden && $("gmsg").hidden && $("sentinel").getBoundingClientRect().top < innerHeight + 600) loadMore(); });
+  }
+}
+new IntersectionObserver(es => { if (es[0].isIntersecting && !$("home").hidden) loadMore(); }, { rootMargin: "800px" }).observe($("sentinel"));
 
-        const r = base.run || {}, c = base.current || {};
-        const active = base.state === "running" && c.id;
-        $("nowcard").hidden = !active;
-        if (active) {
-          $("stage").textContent = "Этап: " + (c.stage || "—");
-          $("vtitle").textContent = c.title || c.id;
-          $("yt").href = "https://youtu.be/" + encodeURIComponent(c.id);
-          const showIa = c.stage === "заливка на archive.org" && c.item;
-          $("ia").hidden = !showIa;
-          if (showIa) $("ia").href = "https://archive.org/details/" + encodeURIComponent(c.item);
-        }
+$("seg").querySelectorAll("button").forEach(b => b.onclick = () => {
+  $("seg").querySelectorAll("button").forEach(x => x.setAttribute("aria-checked", x === b));
+  state.sort = b.dataset.sort; resetGrid();
+});
+yearSel.onchange = () => { state.year = yearSel.value; resetGrid(); };
 
-        const stateText = base.state === "running" ? "Запуск идёт"
-          : base.state === "failed" ? "Запуск остановлен из-за ошибки"
-          : "Запуск завершён";
-        $("now").textContent = stateText
-          + " · за запуск: " + (r.ok ?? 0) + " загружено, " + (r.failed ?? 0) + " ошибок";
+$("sform").onsubmit = e => {
+  e.preventDefault();
+  const q = $("q").value.trim();
+  $("q").blur();
+  location.hash = q ? "#/search/" + encodeURIComponent(q) : "#/";
+};
+$("qclr").onclick = () => { $("q").value = ""; $("q").focus(); if (state.term) location.hash = "#/"; };
 
-        const upd = new Date(base.updated);
-        const age = Date.now() - upd.getTime();
-        const when = ago(upd);
-        $("upd").title = !isNaN(upd.getTime()) ? upd.toLocaleString("ru-RU") : "";
+/* ---------- диалоги ---------- */
+document.querySelectorAll("dialog").forEach(d => {
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-close]")) d.close(); });
+});
+document.addEventListener("keydown", e => {
+  if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) || e.ctrlKey || e.metaKey || e.altKey || document.querySelector("dialog[open]")) return;
+  if (e.key === "/") { e.preventDefault(); $("q").focus(); $("q").select(); }
+  else if (e.key === "?") { e.preventDefault(); $("keysDlg").showModal(); }
+});
 
-        if (failures) {
-          status("err", "Часть данных не обновилась, показаны последние: " + when);
-        } else if (base.state === "failed") {
-          status("err", "Запуск остановлен с ошибкой (" + when + "), подробности в GitHub Actions");
-        } else if (base.state === "running" && age > STALE_MS) {
-          status("stale", "Данные устарели: обновлены " + when + " (запуск мог зависнуть)");
-        } else {
-          status("", "Данные обновлены " + when);
-        }
-      }
+/* ---------- страница видео ---------- */
+function findYouTubeId(m) {
+  const src = [m["youtube-id"], m["external-identifier"], m.source, m.originalurl, m.url, m.description].flat().filter(Boolean).join(" ");
+  const r = src.match(/(?:urn:youtube:|youtu\.be\/|[?&]v=|youtube\.com\/(?:live|shorts|embed)\/)([\w-]{11})/);
+  return r ? r[1] : null;
+}
+function pickVideo(files) {
+  const vids = (files || []).filter(f => /\.(mp4|webm|m4v)$/i.test(f.name));
+  vids.sort((a, b) => (b.source === "original") - (a.source === "original") || (+b.height || 0) - (+a.height || 0) || (+b.size || 0) - (+a.size || 0));
+  return vids;
+}
+const autoplayBox = $("autoplay");
+autoplayBox.checked = localStorage.getItem("pt:autoplay") !== "0";
+autoplayBox.onchange = () => localStorage.setItem("pt:autoplay", autoplayBox.checked ? "1" : "0");
 
-      async function tick() {
-        if (isFetching) return;
-        isFetching = true;
-        clearTimeout(timer);
-        setLoading(true);
+/* ---------- Красивый плеер ---------- */
+const ICON = {
+  play: "M8 5v14l11-7z",
+  pause: "M6 5h4v14H6zm8 0h4v14h-4z",
+  replay: "M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z",
+  next: "M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z",
+  vol: "M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06A9 9 0 0 0 14 3.23z",
+  volLow: "M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z",
+  mute: "M3 9v6h4l5 5V4L7 9H3zm13.59 3L14 9.41 15.41 8 18 10.59 20.59 8 22 9.41 19.41 12 22 14.59 20.59 16 18 13.41 15.41 16 14 14.59z",
+  gear: "M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.47.47 0 0 0-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.61l-2.01-1.58zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z",
+  pip: "M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z",
+  theater: "M19 7H5c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm0 8H5V9h14v6z",
+  fs: "M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z",
+  fsExit: "M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"
+};
+const svg = d => { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 24 24"); const p = document.createElementNS(s.namespaceURI, "path"); p.setAttribute("d", d); s.append(p); return s; };
+const setIcon = (btn, d) => btn.querySelector("path").setAttribute("d", d);
+const fmt = s => { if (!isFinite(s)) return "0:00"; s = Math.floor(s); const h = s / 3600 | 0, m = (s % 3600) / 60 | 0, x = String(s % 60).padStart(2, "0"); return h ? h + ":" + String(m).padStart(2, "0") + ":" + x : m + ":" + x; };
+const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+let activePlayer = null;
 
-        try {
-          const [okB, okL] = await Promise.all([loadBase(), loadLive()]);
-          failures = (okB && okL) ? 0 : failures + 1;
-        } finally {
-          isFetching = false;
-          document.body.classList.remove("initial-load");
-          setLoading(false);
-          render();
-          const delay = Math.min(POLL_MS * 2 ** failures, MAX_BACKOFF_MS);
-          if (!document.hidden) timer = setTimeout(tick, delay);
-        }
-      }
+function createPlayer({ id, title, sources, poster, onFail, getNext, autoNext = () => true }) {
+  const root = el("div", { className: "yp paused loading", tabIndex: 0 });
+  const v = el("video", { playsInline: true, preload: "metadata", poster });
+  v.volume = +(localStorage.getItem("yp:vol") ?? 1);
+  v.muted = localStorage.getItem("yp:muted") === "1";
+  let speed = +(localStorage.getItem("yp:speed") || 1);
+  let srcIdx = 0;
 
-      document.addEventListener("visibilitychange", () => {
-        if (document.hidden) {
-          clearTimeout(timer);
-        } else {
-          tick();
-        }
-      });
+  const btn = (icon, tip, cls = "") => { const b = el("button", { className: "yp-btn " + cls, type: "button" }); b.dataset.tip = tip; b.setAttribute("aria-label", tip); b.append(svg(icon)); return b; };
 
-      tick();
-    </script>
-  </body>
+  // слои
+  const titleBar = el("div", { className: "yp-title", textContent: title });
+  const bigPlay = el("button", { className: "yp-bigplay", type: "button", ariaLabel: "Смотреть" }, svg(ICON.play));
+  const center = el("div", { className: "yp-center" }, svg(ICON.play));
+  const spin = el("div", { className: "yp-spin" });
+  const toastEl = el("div", { className: "yp-toast" });
+  const fxL = el("div", { className: "yp-seekfx l", textContent: "« 10 сек" }), fxR = el("div", { className: "yp-seekfx r", textContent: "10 сек »" });
+
+  // прогресс
+  const buf = el("div", { className: "yp-buf" }), hov = el("div", { className: "yp-hov" }), played = el("div", { className: "yp-played" }), knob = el("div", { className: "yp-knob" });
+  const rail = el("div", { className: "yp-rail" }, buf, hov, played, knob);
+  const tip = el("div", { className: "yp-tip" });
+  const prog = el("div", { className: "yp-prog", role: "slider", ariaLabel: "Перемотка" }, rail, tip);
+
+  // кнопки
+  const bPlay = btn(ICON.play, "Смотреть (k)"), bNext = btn(ICON.next, "Следующее видео (Shift+N)"), bVol = btn(ICON.vol, "Звук (m)");
+  const vIn = el("input", { type: "range", min: 0, max: 1, step: 0.05, value: v.muted ? 0 : v.volume, ariaLabel: "Громкость" });
+  const vol = el("div", { className: "yp-vol" }, bVol, el("div", { className: "yp-vslider" }, vIn));
+  const time = el("div", { className: "yp-time", textContent: "0:00 / 0:00" });
+  const bSet = btn(ICON.gear, "Настройки"), badge = el("span", { className: "yp-badge", hidden: true });
+  bSet.append(badge);
+  const bPip = btn(ICON.pip, "Картинка в картинке (i)", "yp-hide-sm"), bTh = btn(ICON.theater, "Режим кинотеатра (t)", "yp-hide-sm"), bFs = btn(ICON.fs, "Во весь экран (f)");
+  if (!document.pictureInPictureEnabled) bPip.hidden = true;
+  const menu = el("div", { className: "yp-menu", hidden: true });
+  const ctrl = el("div", { className: "yp-ctrl" }, prog, el("div", { className: "yp-row" }, bPlay, bNext, vol, time, el("div", { className: "yp-sp" }), bSet, bPip, bTh, bFs));
+  root.append(v, titleBar, bigPlay, center, spin, toastEl, fxL, fxR, ctrl, menu);
+
+  // источники (качество)
+  function loadSource(i, keepTime) {
+    const t = keepTime ? v.currentTime : 0, wasPlaying = !v.paused;
+    srcIdx = i; v.src = sources[i].src;
+    const q = sources[i].label || "";
+    badge.textContent = /^(\d{3,4})p/.test(q) && +RegExp.$1 >= 720 ? "HD" : ""; badge.hidden = !badge.textContent;
+    if (keepTime) v.addEventListener("loadedmetadata", () => { v.currentTime = t; if (wasPlaying) v.play().catch(() => {}); }, { once: true });
+  }
+  v.addEventListener("error", () => {
+    if (srcIdx + 1 < sources.length) loadSource(srcIdx + 1, true); else onFail();
+  });
+
+  // состояние
+  const toast = txt => { toastEl.textContent = txt; toastEl.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => toastEl.classList.remove("on"), 700); };
+  const flash = (el_, icon) => { if (icon) setIcon(el_, icon); el_.classList.remove("go"); void el_.offsetWidth; el_.classList.add("go"); };
+  const toggle = () => { if (v.paused || v.ended) { v.play().catch(() => {}); } else v.pause(); };
+  const seekBy = s => { v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + s)); poke(); };
+  const setVol = x => { x = Math.max(0, Math.min(1, x)); v.volume = x; v.muted = x === 0; };
+
+  v.addEventListener("play", () => { root.classList.remove("paused"); root.classList.add("started"); setIcon(bPlay, ICON.pause); bPlay.dataset.tip = "Пауза (k)"; endEl?.remove(); });
+  v.addEventListener("pause", () => { root.classList.add("paused"); setIcon(bPlay, ICON.play); bPlay.dataset.tip = "Смотреть (k)"; });
+  v.addEventListener("waiting", () => root.classList.add("loading"));
+  ["playing", "canplay", "seeked"].forEach(e => v.addEventListener(e, () => root.classList.remove("loading")));
+  v.addEventListener("volumechange", () => {
+    const m = v.muted || v.volume === 0;
+    setIcon(bVol, m ? ICON.mute : v.volume < .5 ? ICON.volLow : ICON.vol);
+    vIn.value = m ? 0 : v.volume; vIn.style.accentColor = "#fff";
+    localStorage.setItem("yp:vol", v.volume); localStorage.setItem("yp:muted", v.muted ? "1" : "0");
+  });
+  v.addEventListener("loadedmetadata", () => { v.playbackRate = speed; draw(); });
+  v.addEventListener("ratechange", () => { speed = v.playbackRate; localStorage.setItem("yp:speed", speed); });
+
+  function draw() {
+    const d = v.duration || 0, p = d ? v.currentTime / d * 100 : 0;
+    if (!scrubbing) { played.style.width = p + "%"; knob.style.left = p + "%"; }
+    time.textContent = fmt(v.currentTime) + " / " + fmt(d);
+    if (v.buffered.length && d) {
+      let end = 0; for (let i = 0; i < v.buffered.length; i++) if (v.buffered.start(i) <= v.currentTime + 1) end = v.buffered.end(i);
+      buf.style.width = end / d * 100 + "%";
+    }
+  }
+  ["timeupdate", "progress", "durationchange"].forEach(e => v.addEventListener(e, draw));
+
+  // сохранение позиции
+  const key = "pos:" + id;
+  v.addEventListener("loadedmetadata", () => { const p = +localStorage.getItem(key); if (p > 5 && p < v.duration - 10) { v.currentTime = p; toast("Продолжение с " + fmt(p)); } }, { once: true });
+  v.addEventListener("timeupdate", () => { if (Date.now() - (draw.saved || 0) > 4000) { draw.saved = Date.now(); localStorage.setItem(key, v.currentTime); } });
+
+  // перемотка мышью/пальцем
+  let scrubbing = false;
+  const ratio = e => { const r = rail.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
+  const showTip = x => { tip.textContent = fmt(x * (v.duration || 0)); const w = prog.clientWidth, tw = tip.offsetWidth / 2; tip.style.left = Math.max(tw, Math.min(w - tw, x * w)) + "px"; hov.style.width = x * 100 + "%"; };
+  prog.addEventListener("pointermove", e => showTip(ratio(e)));
+  prog.addEventListener("pointerdown", e => {
+    scrubbing = true; root.classList.add("seeking"); prog.setPointerCapture(e.pointerId);
+    const move = ev => { const x = ratio(ev); played.style.width = knob.style.left = x * 100 + "%"; showTip(x); };
+    const up = ev => { scrubbing = false; root.classList.remove("seeking"); if (v.duration) v.currentTime = ratio(ev) * v.duration; prog.removeEventListener("pointermove", move); prog.removeEventListener("pointerup", up); };
+    move(e); prog.addEventListener("pointermove", move); prog.addEventListener("pointerup", up);
+  });
+
+  // авто-скрытие панели
+  let idleT;
+  const poke = () => { root.classList.remove("idle"); clearTimeout(idleT); idleT = setTimeout(() => root.classList.add("idle"), 2500); };
+  root.addEventListener("pointermove", poke); root.addEventListener("pointerleave", () => !v.paused && root.classList.add("idle"));
+
+  // клик / двойной клик / двойной тап
+  let clickT = null;
+  v.addEventListener("click", e => {
+    closeMenu();
+    if (e.pointerType === "touch" || matchMedia("(pointer:coarse)").matches) {
+      const r = v.getBoundingClientRect(), x = (e.clientX - r.left) / r.width;
+      if (clickT) { clearTimeout(clickT); clickT = null; if (x < .4) { seekBy(-10); flash(fxL); } else if (x > .6) { seekBy(10); flash(fxR); } else fsToggle(); return; }
+      clickT = setTimeout(() => { clickT = null; if (root.classList.contains("idle") && !v.paused) poke(); else { toggle(); flash(center, v.paused ? ICON.pause : ICON.play); } }, 250);
+      return;
+    }
+    if (clickT) { clearTimeout(clickT); clickT = null; fsToggle(); return; }
+    clickT = setTimeout(() => { clickT = null; }, 250);
+    toggle(); flash(center, v.paused ? ICON.pause : ICON.play);
+  });
+  bigPlay.onclick = () => { v.play().catch(() => {}); };
+  bPlay.onclick = toggle;
+  bNext.onclick = () => { const n = getNext(); if (n) location.hash = "#/watch/" + encodeURIComponent(n.identifier); };
+  bVol.onclick = () => { if (v.muted || v.volume === 0) { v.muted = false; if (!v.volume) v.volume = .5; } else v.muted = true; };
+  vIn.oninput = () => setVol(+vIn.value);
+
+  // полноэкранный режим / кинотеатр / PiP
+  const fsToggle = () => document.fullscreenElement ? document.exitFullscreen() : (root.requestFullscreen?.() ?? v.webkitEnterFullscreen?.());
+  bFs.onclick = fsToggle;
+  const onFs = () => { const on = document.fullscreenElement === root; root.classList.toggle("fs", on); setIcon(bFs, on ? ICON.fsExit : ICON.fs); bFs.dataset.tip = on ? "Выход из полноэкранного режима (f)" : "Во весь экран (f)"; };
+  document.addEventListener("fullscreenchange", onFs);
+  const thToggle = () => { const on = document.querySelector(".watch").classList.toggle("theater"); localStorage.setItem("yp:theater", on ? "1" : ""); bTh.dataset.tip = on ? "Обычный режим (t)" : "Режим кинотеатра (t)"; };
+  bTh.onclick = thToggle;
+  bPip.onclick = () => document.pictureInPictureElement ? document.exitPictureInPicture() : v.requestPictureInPicture().catch(() => {});
+
+  // меню настроек
+  function closeMenu() { menu.hidden = true; root.classList.remove("menu-open"); }
+  function openMenu(page = "main") {
+    menu.replaceChildren(); menu.hidden = false; root.classList.add("menu-open");
+    const item = (label, val, fn, cls = "") => { const b = el("button", { className: "yp-mi " + cls, type: "button" }, el("span", { textContent: label }), el("span", { textContent: val || "" })); b.onclick = e => { e.stopPropagation(); fn(); }; menu.append(b); };
+    if (page === "main") {
+      item("Скорость", speed === 1 ? "Обычная" : speed + "×", () => openMenu("speed"));
+      if (sources.length > 1) item("Качество", sources[srcIdx].label + " ›", () => openMenu("q"));
+      item("Повтор", v.loop ? "Вкл" : "Выкл", () => { v.loop = !v.loop; openMenu(); });
+    } else if (page === "speed") {
+      item("‹ Скорость", "", () => openMenu(), "yp-mh");
+      SPEEDS.forEach(s => item(s === 1 ? "Обычная" : s + "×", "", () => { v.playbackRate = s; toast(s + "×"); closeMenu(); }, "opt" + (s === speed ? " on" : "")));
+    } else {
+      item("‹ Качество", "", () => openMenu(), "yp-mh");
+      sources.forEach((s, i) => item(s.label, s.size || "", () => { if (i !== srcIdx) loadSource(i, true); closeMenu(); }, "opt" + (i === srcIdx ? " on" : "")));
+    }
+  }
+  bSet.onclick = e => { e.stopPropagation(); menu.hidden ? openMenu() : closeMenu(); };
+  menu.addEventListener("click", e => e.stopPropagation());
+  root.addEventListener("click", e => { if (!menu.contains(e.target) && e.target !== bSet) closeMenu(); });
+
+  // экран «следующее видео»
+  let endEl = null;
+  v.addEventListener("ended", () => {
+    localStorage.removeItem(key);
+    const n = getNext(); if (!n || v.loop || !autoNext()) return;
+    let left = 8;
+    const cnt = el("span", { textContent: left });
+    const go = () => { location.hash = "#/watch/" + encodeURIComponent(n.identifier); };
+    const cancel = el("button", { type: "button", textContent: "Отмена" }), play = el("button", { className: "p", type: "button", textContent: "Смотреть" });
+    endEl = el("div", { className: "yp-end" }, el("div", {},
+      el("div", {}, "Следующее видео через ", cnt),
+      el("img", { src: thumbUrl(n.identifier), alt: "" }),
+      el("div", { className: "t", textContent: first(n.title) || n.identifier }),
+      el("div", { className: "b" }, cancel, play)));
+    const iv = setInterval(() => { cnt.textContent = --left; if (left <= 0) { clearInterval(iv); go(); } }, 1000);
+    cancel.onclick = () => { clearInterval(iv); endEl.remove(); };
+    play.onclick = () => { clearInterval(iv); go(); };
+    root.append(endEl);
+  });
+
+  // горячие клавиши (как на YouTube)
+  root.keys = e => {
+    if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) && document.activeElement !== vIn || e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key.toLowerCase(); let used = true;
+    if (k === " " || k === "k") { toggle(); flash(center, v.paused ? ICON.pause : ICON.play); }
+    else if (k === "j") { seekBy(-10); flash(fxL); }
+    else if (k === "l") { seekBy(10); flash(fxR); }
+    else if (k === "arrowleft") { seekBy(-5); flash(fxL); }
+    else if (k === "arrowright") { seekBy(5); flash(fxR); }
+    else if (k === "arrowup") { setVol(v.volume + .05); toast(Math.round(v.volume * 100) + "%"); }
+    else if (k === "arrowdown") { setVol(v.volume - .05); toast(Math.round(v.volume * 100) + "%"); }
+    else if (k === "m") { bVol.onclick(); toast(v.muted ? "Без звука" : Math.round(v.volume * 100) + "%"); }
+    else if (k === "f") fsToggle();
+    else if (k === "t") thToggle();
+    else if (k === "i") bPip.onclick();
+    else if (k === "n" && e.shiftKey) bNext.onclick();
+    else if (e.key === ">" || e.key === "<") { const i = SPEEDS.indexOf(speed) + (e.key === ">" ? 1 : -1); if (SPEEDS[i]) { v.playbackRate = SPEEDS[i]; toast(SPEEDS[i] + "×"); } }
+    else if (/^[0-9]$/.test(k) && v.duration) v.currentTime = v.duration * +k / 10;
+    else if (k === "home") v.currentTime = 0;
+    else if (k === "end" && v.duration) v.currentTime = v.duration;
+    else used = false;
+    if (used) { e.preventDefault(); poke(); }
+  };
+  root.destroy = () => { v.pause(); v.removeAttribute("src"); v.load(); document.removeEventListener("fullscreenchange", onFs); clearTimeout(idleT); };
+
+  if (localStorage.getItem("yp:theater")) { document.querySelector(".watch").classList.add("theater"); bTh.dataset.tip = "Обычный режим (t)"; }
+  loadSource(0);
+  v.play().catch(() => root.classList.remove("loading"));
+  return root;
+}
+document.addEventListener("keydown", e => { if (activePlayer && !$("watchview").hidden) activePlayer.keys(e); });
+
+
+/* таймкоды и ссылки в описании становятся кликабельными */
+function linkify(text) {
+  const out = [], re = /(https?:\/\/[^\s<]+)|(?<![\d:])(\d{1,2}:)?(\d{1,2}):(\d{2})(?![\d:])/g;
+  let i = 0, m;
+  while ((m = re.exec(text))) {
+    out.push(text.slice(i, m.index));
+    if (m[1]) out.push(el("a", { href: m[1], target: "_blank", rel: "noopener nofollow", textContent: m[1] }));
+    else {
+      const sec = (m[2] ? parseInt(m[2]) * 3600 : 0) + parseInt(m[3]) * 60 + parseInt(m[4]);
+      out.push(el("a", { className: "tc", href: "#", textContent: m[0], onclick: e => {
+        e.preventDefault(); const v = activePlayer?.querySelector("video");
+        if (v) { v.currentTime = sec; v.play().catch(() => {}); $("player").scrollIntoView({ behavior: "smooth", block: "center" }); }
+      } }));
+    }
+    i = re.lastIndex;
+  }
+  out.push(text.slice(i));
+  return out;
+}
+
+let watchGen = 0;
+function destroyPlayer() { if (activePlayer) { activePlayer.destroy(); activePlayer = null; } }
+
+async function openWatch(id) {
+  const gen = ++watchGen;
+  const player = $("player");
+  destroyPlayer(); player.replaceChildren();
+  $("wtitle").textContent = "Загрузка…"; $("wmeta").textContent = ""; $("wdesc").textContent = "";
+  $("wia").href = "https://archive.org/details/" + encodeURIComponent(id);
+  $("wyt").hidden = true; $("more").hidden = true; $("desc").classList.add("clamp"); $("desc").hidden = false;
+  scrollTo(0, 0);
+  loadSide(id);
+
+  let m = null;
+  try { m = await getJSON("https://archive.org/metadata/" + encodeURIComponent(id)); } catch (e) {}
+  if (gen !== watchGen) return;
+
+  const md = (m && m.metadata) || {};
+  const title = first(md.title) || id;
+  document.title = title + " — " + SITE;
+  $("wtitle").textContent = title;
+
+  const date = first(md.date);
+  const dd = date && !isNaN(new Date(date)) ? new Date(date).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" }) : "";
+  $("wmeta").textContent = [dd, m && m.item_size ? (m.item_size / 1e9).toFixed(1).replace(".", ",") + " ГБ" : ""].filter(Boolean).join(" · ");
+
+  const tmp = document.createElement("div"); tmp.innerHTML = [md.description].flat().filter(Boolean).join("\n");
+  const desc = (tmp.textContent || "").trim();
+  $("wdesc").replaceChildren(...linkify(desc)); $("desc").hidden = !desc;
+  requestAnimationFrame(() => { const t = $("wdesc"); $("more").hidden = t.scrollHeight <= t.clientHeight + 2; });
+
+  const yt = findYouTubeId(md);
+  if (yt) { $("wyt").href = "https://youtu.be/" + yt; $("wyt").hidden = false; }
+
+  const vids = m ? pickVideo(m.files) : [];
+  const embed = () => { destroyPlayer(); player.replaceChildren(el("iframe", { src: "https://archive.org/embed/" + encodeURIComponent(id), allow: "fullscreen; autoplay; picture-in-picture", allowFullscreen: true, title })); };
+  if (!m) { player.replaceChildren(el("div", { className: "empty", style: "color:#ccc;position:absolute;inset:0;display:grid;place-items:center" }, el("div", {}, el("b", { textContent: "Видео не загрузилось", style: "color:#fff" }), "Internet Archive не ответил.", el("br"), el("button", { className: "btn", type: "button", textContent: "Повторить", onclick: () => openWatch(id) })))); return; }
+  if (!vids.length) return embed();
+
+  const host = m.d1 ? "https://" + m.d1 + m.dir + "/" : "https://archive.org/download/" + encodeURIComponent(id) + "/";
+  const sources = vids.map(f => ({
+    src: host + f.name.split("/").map(encodeURIComponent).join("/"),
+    label: f.height ? f.height + "p" : (f.source === "original" ? "Оригинал" : (f.format || f.name.split(".").pop().toUpperCase())),
+    size: f.size ? (f.size / 1e6 >= 1000 ? (f.size / 1e9).toFixed(1) + " ГБ" : Math.round(f.size / 1e6) + " МБ") : ""
+  }));
+  activePlayer = createPlayer({ id, title, sources, poster: thumbUrl(id), onFail: embed, getNext: () => sideDocs[0], autoNext: () => autoplayBox.checked });
+  player.replaceChildren(activePlayer);
+  activePlayer.focus({ preventScroll: true });
+
+  const v = activePlayer.querySelector("video"); let last = 0;
+  const rec = () => { if (v.duration) saveHist({ id, title, t: v.ended ? v.duration : v.currentTime, d: v.duration, date }); };
+  v.addEventListener("timeupdate", () => { if (Date.now() - last > 5000) { last = Date.now(); rec(); } });
+  v.addEventListener("pause", rec); v.addEventListener("ended", rec);
+}
+
+let sideDocs = [], sideGen = 0;
+async function loadSide(id) {
+  const gen = ++sideGen, side = $("side");
+  sideDocs = [];
+  side.replaceChildren(...Array.from({ length: 6 }, skeleton));
+  const sorts = ["downloads desc", "date desc", "addeddate desc"];
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const r = await search(BASE_Q, sorts[attempt], 1, 60);
+      if (gen !== sideGen) return;
+      const docs = r.docs.filter(d => d.identifier !== id);
+      if (!docs.length) continue;
+      for (let i = docs.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [docs[i], docs[j]] = [docs[j], docs[i]]; }
+      sideDocs = docs.slice(0, 20);
+      const cards = sideDocs.map(d => card(d)); 
+      side.replaceChildren(...cards);
+      return;
+    } catch (e) {
+      if (gen !== sideGen) return;
+      await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+    }
+  }
+  if (gen !== sideGen) return;
+  side.replaceChildren(el("div", { className: "empty" }, el("b", { textContent: "Список не загрузился" }),
+    el("button", { className: "btn", type: "button", textContent: "Повторить", onclick: () => loadSide(id) })));
+}
+
+$("more").onclick = () => { const c = $("desc").classList.toggle("clamp"); $("more").textContent = c ? "ещё" : "свернуть"; };
+$("share").onclick = async () => {
+  const url = location.href, b = $("share");
+  try { { await navigator.clipboard.writeText(url); b.textContent = "скопировано"; setTimeout(() => b.textContent = "скопировать ссылку", 1800); } } catch (e) {}
+};
+
+/* ---------- роутер ---------- */
+function route() {
+  const h = decodeURIComponent(location.hash.slice(1));
+  const [, kind, arg] = h.match(/^\/(watch|search)\/(.+)$/) || [];
+  if (kind === "watch") {
+    $("home").hidden = true; $("watchview").hidden = false;
+    openWatch(arg);
+    return;
+  }
+  watchGen++; destroyPlayer(); $("player").replaceChildren();
+  $("home").hidden = false; $("watchview").hidden = true;
+  document.title = SITE;
+  const term = kind === "search" ? arg : "";
+  $("q").value = term;
+  $("hero").hidden = !!term;
+  if (term !== state.term || !$("grid").children.length) { state.term = term; resetGrid(); }
+  renderContinue();
+  if (term) scrollTo(0, 0);
+}
+addEventListener("hashchange", route);
+route();
+
+/* ---------- прогресс архивации ---------- */
+const gh = location.hostname.endsWith("github.io");
+const OWNER = gh ? location.hostname.split(".")[0] : "roflinki38";
+const REPO = (gh && location.pathname.split("/")[1]) || "arthas-archivator";
+const STATUS_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/status/status.json`;
+const POLL_MS = 30000, STALE_MS = 15 * 60 * 1000;
+let base = null, live = null, fails = 0, ptimer;
+const P = k => document.querySelectorAll('[data-p="' + k + '"]');
+const setP = (k, fn) => P(k).forEach(fn);
+
+function setStatus(cls, text) { setP("status", e => e.replaceChildren(el("span", { className: "dot " + cls }), text)); }
+
+async function tick() {
+  clearTimeout(ptimer);
+  const [b, l] = await Promise.allSettled([
+    getJSON(STATUS_URL + "?t=" + Date.now()),
+    search(BASE_Q, "date desc", 1, 0).then(r => r.numFound)
+  ]);
+  if (b.status === "fulfilled") base = b.value;
+  if (l.status === "fulfilled") live = l.value;
+  fails = (b.status === "fulfilled" && l.status === "fulfilled") ? 0 : fails + 1;
+
+  const s = base || {};
+  const doneBase = s.archived ?? ((s.streams?.archived || 0) + (s.videos?.archived || 0));
+  const totalBase = s.total ?? ((s.streams?.total || 0) + (s.videos?.total || 0));
+  const done = live ?? (base ? doneBase : null);
+  const total = base ? Math.max(totalBase, done ?? 0) : null;
+  const pct = total ? Math.min(100, Math.floor(done / total * 100)) : null;
+
+  setP("done", e => e.textContent = done != null ? nf.format(done) : "—");
+  setP("total", e => e.textContent = total != null ? nf.format(total) : "—");
+  
+  
+  setP("fill", e => e.style.width = (pct || 0) + "%");
+  setP("bar", e => e.setAttribute("aria-valuenow", pct || 0));
+    const c = s.current || {}, active = s.state === "running" && c.id;
+  setP("nowbox", e => e.hidden = !active);
+  if (active) setP("nowlink", e => { e.textContent = c.title || c.id; e.href = "https://youtu.be/" + encodeURIComponent(c.id); });
+
+  if (!base) setStatus(fails ? "err" : "wait", fails ? "статус сейчас недоступен" : "данных о запуске пока нет");
+  else {
+    const upd = new Date(s.updated), when = ago(upd);
+    if (s.state === "failed") setStatus("err", "последний запуск упал · " + when);
+    else if (s.state === "running" && Date.now() - upd > STALE_MS) setStatus("stale", "похоже, зависло · " + when);
+    else if (s.state === "running") setStatus("", "обновлено " + when);
+    else setStatus("", "обновлено " + when);
+  }
+  if (!document.hidden) ptimer = setTimeout(tick, Math.min(POLL_MS * 2 ** fails, 300000));
+}
+document.addEventListener("visibilitychange", () => document.hidden ? clearTimeout(ptimer) : tick());
+tick();
+</script>
+</body>
 </html>
