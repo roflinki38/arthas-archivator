@@ -75,11 +75,18 @@ jobs:
         with:
           deno-version: v2.x
 
+      # --- ffmpeg нужен yt-dlp для склейки видео и аудио ---
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
       - name: Install
         run: |
           pip install --prefer-binary -U "yt-dlp[default]" internetarchive
           yt-dlp --version
           deno --version
+          command -v ffmpeg >/dev/null || { echo "::error::ffmpeg не установлен"; exit 1; }
           ffmpeg -version | head -n 1
 
       - name: IA config
