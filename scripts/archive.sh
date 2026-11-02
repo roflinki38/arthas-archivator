@@ -116,6 +116,7 @@ LIVE='live event will begin|Premieres in|live stream recording is not available'
 bot_fails=0
 fmt_fails=0
 nofile_fails=0
+tag_fails=0
 
 while IFS=$'\t' read -r id _ts title <&3; do
   rem=$(left)
@@ -256,12 +257,15 @@ while IFS=$'\t' read -r id _ts title <&3; do
   fi
 
   if [ "$ia_rc" -eq 0 ]; then
+    # Айтем появляется на archive.org не сразу после заливки: ждём с нарастающими паузами (до ~8 мин)
     tagged=0
-    for t in 1 2 3; do
-      if ia metadata "$item" --modify="subject:$TAG" </dev/null; then tagged=1; break; fi
-      sleep 10
+    for delay in 20 40 60 90 120 180; do
+      sleep "$delay"
+      if tag_out=$(ia metadata "$item" --modify="subject:$TAG" </dev/null 2>&1); then tagged=1; break; fi
+      echo "Тегирование не удалось, повтор: $tag_out"
     done
     if [ "$tagged" -eq 1 ]; then
+      tag_fails=0
       echo "OK $item (${vh}p)"
       echo "$id" >> ok.txt
       record_h="$vh"
@@ -274,6 +278,12 @@ while IFS=$'\t' read -r id _ts title <&3; do
     else
       echo "FAIL tag $item (останется -incomplete)"
       fail_run=$((fail_run+1))
+      tag_fails=$((tag_fails+1))
+      if [ "$tag_fails" -ge 3 ]; then
+        echo "::error::3 раза подряд не удалось поставить тег. Проверь, не скрыты ли ($item) айтемы на archive.org (dark/spam)"
+        exit 1
+      fi
+      sleep $(( 60 + RANDOM % 61 ))
     fi
   else
     echo "FAIL upload $item"
