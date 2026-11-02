@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# archive.sh: скачивает с YouTube (1080p, до 24G, либо 720p для гигантских стримов) и заливает на archive.org
+# archive.sh: скачивает с YouTube (1080p, до 60G, либо 720p для гигантских стримов) и заливает на archive.org
 set -eo pipefail
 
 touch skip.txt verified.txt
@@ -128,21 +128,21 @@ while IFS=$'\t' read -r id _ts title <&3; do
   write_status running || echo "::warning::не удалось обновить статус"
   rm -rf dl; mkdir dl
 
-  # Основная попытка: до 24 ГБ, 1080p или максимальное доступное
+  # Основная попытка: до 60 ГБ, 1080p или максимальное доступное
   if ! timeout "$rem" "${YT[@]}" \
        -f "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/b" -S "ext:mp4:m4a" --merge-output-format mp4 \
-       --max-filesize 24G --no-progress \
+       --max-filesize 60G --no-progress \
        --sleep-requests 1 --sleep-interval 5 --max-sleep-interval 15 --retries 5 \
        --write-info-json --write-thumbnail \
        -o "dl/$id.%(ext)s" "https://youtu.be/$id" </dev/null 2>&1 | tee dl.log; then
     
-    # Авто-фоллбэк: если файл >24G, пробуем скачать в 720p вместо отбрасывания
+    # Авто-фоллбэк: если файл даже больше 60G, пробуем скачать в 720p
     if grep -qiE 'larger than max-filesize' dl.log; then
-      echo "Файл > 24G в 1080p. Пробуем скачать в качестве <= 720p..."
+      echo "Файл > 60G в 1080p. Пробуем скачать в качестве <= 720p..."
       rm -rf dl; mkdir dl
       if timeout "$rem" "${YT[@]}" \
            -f "bv*[height<=720]+ba/b[height<=720]" -S "ext:mp4:m4a" --merge-output-format mp4 \
-           --max-filesize 24G --no-progress \
+           --max-filesize 60G --no-progress \
            --sleep-requests 1 --sleep-interval 5 --max-sleep-interval 15 --retries 5 \
            --write-info-json --write-thumbnail \
            -o "dl/$id.%(ext)s" "https://youtu.be/$id" </dev/null 2>&1 | tee dl.log; then
