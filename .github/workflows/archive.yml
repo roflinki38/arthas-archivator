@@ -186,7 +186,7 @@ jobs:
           done 3< a_heights.txt
           echo "Аудит: >=${MIN_H}p или максимум: $good, на перезаливку: $low, неизвестно: $unk, ошибок: $err"
 
-      # --- Фильтр yt-dlp: пропускаем идущие трансляции и стримы свежее 2 дней ---
+      # --- Фильтр yt-dlp: валидный синтаксис (несколько --match-filter работают как OR) ---
       - name: Configure yt-dlp filter
         shell: bash
         run: |
@@ -194,7 +194,9 @@ jobs:
           mkdir -p ~/.config/yt-dlp
           cat << EOF > ~/.config/yt-dlp/config
           --ignore-no-formats
-          --match-filter "(!was_live & !is_live & live_status!=post_live & live_status!=is_upcoming) | (live_status=was_live & ((release_timestamp & release_timestamp <= $CUTOFF) | (!release_timestamp & timestamp <= $CUTOFF)))"
+          --match-filter "!was_live & !is_live & live_status!=post_live & live_status!=is_upcoming"
+          --match-filter "live_status=was_live & release_timestamp <= $CUTOFF"
+          --match-filter "live_status=was_live & !release_timestamp & timestamp <= $CUTOFF"
           EOF
           echo "Конфигурация yt-dlp создана. Стримы позднее $CUTOFF будут игнорироваться."
 
