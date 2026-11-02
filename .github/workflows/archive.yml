@@ -207,7 +207,9 @@ jobs:
           IA_EMAIL: ${{ secrets.IA_EMAIL }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           YT_COOKIES_B64: ${{ secrets.YT_COOKIES_B64 }}
-        run: bash scripts/archive.sh
+        run: |
+          sed -i 's/\r$//' scripts/archive.sh
+          bash scripts/archive.sh
 
       - name: Cleanup
         if: always()
