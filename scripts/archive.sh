@@ -2,7 +2,7 @@
 # archive.sh: скачивает с YouTube (1080p, до 60G, либо 720p для гигантских стримов) и заливает на archive.org
 set -eo pipefail
 
-touch skip.txt verified.txt
+touch skip.txt verified.txt cooldown.txt
 : > done.txt; : > ok.txt; : > ids.txt
 [ -f prev.json ] || : > prev.json
 
@@ -12,7 +12,7 @@ SOFT=19000         # после этого новые видео не начин
 JOB_START="${JOB_START:-$(date +%s)}"
 left() { echo $(( JOB_START + HARD - $(date +%s) )); }
 
-# ---------- статус: status.json, skip.txt, verified.txt уходят в ветку status ----------
+# ---------- статус: status.json, skip.txt, verified.txt, cooldown.txt уходят в ветку status ----------
 fail_run=0
 cur_id=""; cur_title=""; cur_item=""; cur_stage="подготовка"
 
@@ -21,7 +21,7 @@ skip_add() {  # $1=id $2=через сколько дней повторить $
 }
 
 write_status() {  # $1 = running|ended|failed
-  : >> skip.txt; : >> verified.txt; : >> ok.txt; : >> done.txt
+  : >> skip.txt; : >> verified.txt; : >> ok.txt; : >> done.txt; : >> cooldown.txt
   sort -k1,1 -k2,2nr skip.txt | awk '!s[$1]++' > skip.tmp && mv skip.tmp skip.txt
   sort -k1,1 -k3,3nr verified.txt | awk '!s[$1]++' > verified.tmp && mv verified.tmp verified.txt
   cat done.txt ok.txt | sort -u > all_done.txt
@@ -37,10 +37,10 @@ write_status() {  # $1 = running|ended|failed
     --argjson tot "$tot" --argjson arch "$arch" \
     --argjson ok "$(wc -l < ok.txt)" --argjson fl "$fail_run" --argjson sk "$sk" \
     '{updated:$u,state:$s,current:{id:$cid,item:$citem,title:$cti,stage:$cst},total:$tot,archived:$arch,run:{ok:$ok,failed:$fl},skipped:$sk}' > status.json
-  rm -rf _st && mkdir _st && cp status.json skip.txt verified.txt _st/
+  rm -rf _st && mkdir _st && cp status.json skip.txt verified.txt cooldown.txt _st/
   ( cd _st && git init -q -b status && git config user.name archive-bot \
     && git config user.email bot@users.noreply.github.com \
-    && git add status.json skip.txt verified.txt && git commit -qm status \
+    && git add status.json skip.txt verified.txt cooldown.txt && git commit -qm status \
     && git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" status ) || echo "WARN: статус не отправлен"
 }
 trap 'rc=$?; trap - EXIT; if [ "$rc" -eq 0 ]; then cur_stage="завершено"; write_status ended; else cur_stage="остановлено с ошибкой"; write_status failed || echo "::warning::статус не записан"; fi; exit "$rc"' EXIT
@@ -223,7 +223,8 @@ while IFS=$'\t' read -r id _ts title <&3; do
 
   vdate=$(jq -r '.upload_date // empty' "dl/$id.info.json" \
           | sed -E 's/^([0-9]{4})([0-9]{2})([0-9]{2})$/\1-\2-\3/')
-  desc=$(jq -r '(.description // "")[0:2000] | @html | gsub("\n";"<br>")' "dl/$id.info.json")
+  # Описание: убираем все ссылки (частый триггер антиспама), обрезаем до 1000 символов
+  desc=$(jq -r '(.description // "") | gsub("https?://\\S+"; "") | gsub("[ \\t]+\n"; "\n") | gsub("\n{3,}"; "\n\n") | .[0:1000] | @html | gsub("\n";"<br>")' "dl/$id.info.json")
 
   vh=$(jq -r '.height // empty' "dl/$id.info.json")
   [ -n "$vh" ] || vh=1080
@@ -246,9 +247,11 @@ while IFS=$'\t' read -r id _ts title <&3; do
   set -e
   echo "$upload_out"
 
-  # Проверка на антиспам блокировку Internet Archive
+  # Антиспам-блокировка Internet Archive: запоминаем время, чтобы запуски по расписанию
+  # не продлевали блокировку (см. шаг Cooldown check в workflow), и останавливаемся
   if grep -qiE 'reduce your request rate|appears to be spam' <<< "$upload_out"; then
-    echo "::error::Archive.org временно заблокировал заливку (anti-spam rate limit). Запуск остановлен."
+    date +%s > cooldown.txt
+    echo "::error::Archive.org временно заблокировал заливку (anti-spam). Запуски по расписанию приостановлены на 12 часов."
     exit 1
   fi
 
@@ -266,8 +269,8 @@ while IFS=$'\t' read -r id _ts title <&3; do
         record_h=1080
       fi
       echo "$id $record_h $(date +%s)" >> verified.txt
-      # Вежливая пауза 15 сек между видео для защиты от спам-фильтра
-      sleep 15
+      # Пауза 60-120 секунд между видео (с разбросом) для защиты от спам-фильтра
+      sleep $(( 60 + RANDOM % 61 ))
     else
       echo "FAIL tag $item (останется -incomplete)"
       fail_run=$((fail_run+1))
