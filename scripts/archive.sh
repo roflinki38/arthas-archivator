@@ -128,20 +128,22 @@ while IFS=$'\t' read -r id _ts title <&3; do
   write_status running || echo "::warning::не удалось обновить статус"
   rm -rf dl; mkdir dl
 
-  # Основная попытка: до 60 ГБ, 1080p или максимальное доступное
+  # Основная попытка: до 60 ГБ, 1080p, объединение в единый mp4
   if ! timeout "$rem" "${YT[@]}" \
-       -f "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/b" -S "ext:mp4:m4a" --merge-output-format mp4 \
+       -f "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/b" -S "ext:mp4:m4a" \
+       --merge-output-format mp4 --no-keep-video \
        --max-filesize 60G --no-progress \
        --sleep-requests 1 --sleep-interval 5 --max-sleep-interval 15 --retries 5 \
        --write-info-json --write-thumbnail \
        -o "dl/$id.%(ext)s" "https://youtu.be/$id" </dev/null 2>&1 | tee dl.log; then
     
-    # Авто-фоллбэк: если файл даже больше 60G, пробуем скачать в 720p
+    # Авто-фоллбэк: если файл > 60G, пробуем скачать в 720p
     if grep -qiE 'larger than max-filesize' dl.log; then
       echo "Файл > 60G в 1080p. Пробуем скачать в качестве <= 720p..."
       rm -rf dl; mkdir dl
       if timeout "$rem" "${YT[@]}" \
-           -f "bv*[height<=720]+ba/b[height<=720]" -S "ext:mp4:m4a" --merge-output-format mp4 \
+           -f "bv*[height<=720]+ba/b[height<=720]" -S "ext:mp4:m4a" \
+           --merge-output-format mp4 --no-keep-video \
            --max-filesize 60G --no-progress \
            --sleep-requests 1 --sleep-interval 5 --max-sleep-interval 15 --retries 5 \
            --write-info-json --write-thumbnail \
@@ -197,6 +199,15 @@ while IFS=$'\t' read -r id _ts title <&3; do
     continue
   fi
 
+  # Ищем итоговый видеофайл (любой из mp4/mkv/webm)
+  video_file=$(ls dl/"$id".mp4 dl/"$id".mkv dl/"$id".webm 2>/dev/null | head -n 1 || true)
+  if [ -z "$video_file" ]; then
+    echo "FAIL $id: итоговый объединенный видеофайл не найден"
+    fail_run=$((fail_run+1))
+    rm -rf dl
+    continue
+  fi
+
   jt=$(jq -r '.title // empty' "dl/$id.info.json")
   [ -n "$jt" ] && title="$jt"
   [ -n "$title" ] || title="$id"
@@ -216,8 +227,25 @@ while IFS=$'\t' read -r id _ts title <&3; do
   if [ -n "$vdate" ]; then meta+=(--metadata="date:$vdate"); fi
   if [ -n "$desc" ];  then meta+=(--metadata="description:$desc"); fi
 
+  # Заливаем только готовое видео, метаданные и превью (без промежуточных потоков)
+  upload_files=("$video_file" "dl/$id.info.json")
+  thumb_file=$(ls dl/"$id".jpg dl/"$id".webp dl/"$id".png 2>/dev/null | head -n 1 || true)
+  [ -n "$thumb_file" ] && upload_files+=("$thumb_file")
+
   rem=$(left)
-  if timeout "$rem" ia upload "$item" dl/"$id".* "${meta[@]}" --checksum --retries 5 </dev/null; then
+  set +e
+  upload_out=$(timeout "$rem" ia upload "$item" "${upload_files[@]}" "${meta[@]}" --checksum --retries 3 </dev/null 2>&1)
+  ia_rc=$?
+  set -e
+  echo "$upload_out"
+
+  # Проверка на антиспам блокировку Internet Archive
+  if grep -qiE 'reduce your request rate|appears to be spam' <<< "$upload_out"; then
+    echo "::error::Archive.org временно заблокировал заливку (anti-spam rate limit). Запуск остановлен."
+    exit 1
+  fi
+
+  if [ "$ia_rc" -eq 0 ]; then
     tagged=0
     for t in 1 2 3; do
       if ia metadata "$item" --modify="subject:$TAG" </dev/null; then tagged=1; break; fi
@@ -231,6 +259,8 @@ while IFS=$'\t' read -r id _ts title <&3; do
         record_h=1080
       fi
       echo "$id $record_h $(date +%s)" >> verified.txt
+      # Вежливая пауза 15 сек между видео для защиты от спам-фильтра
+      sleep 15
     else
       echo "FAIL tag $item (останется -incomplete)"
       fail_run=$((fail_run+1))
