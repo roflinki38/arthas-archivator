@@ -58,6 +58,7 @@ item_of() { existing_item "$1" || printf 'arthas-archive-%s' "$1"; }
 # ---------- 0. проверки и cookies ----------
 [ -n "${YT_COOKIES_B64:-}" ] || { echo "::error::Секрет YT_COOKIES_B64 не задан"; exit 1; }
 [ -n "${IA_EMAIL:-}" ] || { echo "::error::Секрет IA_EMAIL не задан, список загруженного был бы пустым"; exit 1; }
+command -v ffmpeg >/dev/null || { echo "::error::ffmpeg не найден, объединение форматов невозможно"; exit 1; }
 echo "$YT_COOKIES_B64" | base64 -d > cookies.txt
 chmod 600 cookies.txt
 YT=(yt-dlp --cookies cookies.txt)
@@ -114,6 +115,7 @@ PERM='Private video|members-only|Join this channel|has been removed|Video unavai
 LIVE='live event will begin|Premieres in|live stream recording is not available'
 bot_fails=0
 fmt_fails=0
+nofile_fails=0
 
 while IFS=$'\t' read -r id _ts title <&3; do
   rem=$(left)
@@ -136,7 +138,7 @@ while IFS=$'\t' read -r id _ts title <&3; do
        --sleep-requests 1 --sleep-interval 5 --max-sleep-interval 15 --retries 5 \
        --write-info-json --write-thumbnail \
        -o "dl/$id.%(ext)s" "https://youtu.be/$id" </dev/null 2>&1 | tee dl.log; then
-    
+
     # Авто-фоллбэк: если файл > 60G, пробуем скачать в 720p
     if grep -qiE 'larger than max-filesize' dl.log; then
       echo "Файл > 60G в 1080p. Пробуем скачать в качестве <= 720p..."
@@ -204,9 +206,14 @@ while IFS=$'\t' read -r id _ts title <&3; do
   if [ -z "$video_file" ]; then
     echo "FAIL $id: итоговый объединенный видеофайл не найден"
     fail_run=$((fail_run+1))
+    nofile_fails=$((nofile_fails+1))
     rm -rf dl
+    if [ "$nofile_fails" -ge 3 ]; then
+      echo "::error::3 раза подряд нет итогового файла: проверь ffmpeg"; exit 1
+    fi
     continue
   fi
+  nofile_fails=0
 
   jt=$(jq -r '.title // empty' "dl/$id.info.json")
   [ -n "$jt" ] && title="$jt"
