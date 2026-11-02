@@ -108,7 +108,7 @@ jobs:
           echo "$YT_COOKIES_B64" | base64 -d > cookies.txt
           chmod 600 cookies.txt
 
-      # --- состояние между запусками лежит в ветке status: skip.txt и verified.txt ---
+      # --- состояние между запусками лежит в ветке status: skip.txt, verified.txt, cooldown.txt ---
       - name: Load state
         shell: bash
         env:
@@ -125,6 +125,7 @@ jobs:
           }
           load skip.txt
           load verified.txt
+          load cooldown.txt
           code=$(curl -sS --retry 3 -o prev.json -w '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" \
             "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/status/status.json" || echo 000)
           case "$code" in
@@ -134,8 +135,25 @@ jobs:
           esac
           echo "skip.txt: $(wc -l < skip.txt) строк, verified.txt: $(wc -l < verified.txt) строк"
 
+      # --- после антиспам-блокировки archive.org запуски по расписанию пропускаются 12 часов ---
+      # --- ручной запуск (workflow_dispatch) пауза не останавливает ---
+      - name: Cooldown check
+        id: cd
+        shell: bash
+        run: |
+          active=false
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ -s cooldown.txt ]; then
+            ts=$(head -n 1 cooldown.txt | tr -dc '0-9')
+            if [ -n "$ts" ] && [ $(( $(date +%s) - ts )) -lt 43200 ]; then
+              active=true
+              echo "Пауза после антиспам-блокировки archive.org: запуск по расписанию пропущен"
+            fi
+          fi
+          echo "active=$active" >> "$GITHUB_OUTPUT"
+
       # --- автоаудит качества: находит видео ниже 1080p и помечает на перезаливку, только если на YT появилось лучшее качество ---
       - name: Audit quality
+        if: steps.cd.outputs.active != 'true'
         shell: bash
         continue-on-error: true
         env:
@@ -195,6 +213,7 @@ jobs:
 
       # --- Фильтр yt-dlp: валидный синтаксис (несколько --match-filter работают как OR) ---
       - name: Configure yt-dlp filter
+        if: steps.cd.outputs.active != 'true'
         shell: bash
         run: |
           CUTOFF=$(($(date +%s) - 172800))
@@ -208,6 +227,7 @@ jobs:
           echo "Конфигурация yt-dlp создана. Стримы позднее $CUTOFF будут игнорироваться."
 
       - name: Archive
+        if: steps.cd.outputs.active != 'true'
         shell: bash
         env:
           CHANNEL: "@SpitefulDick"
@@ -244,12 +264,14 @@ jobs:
           1. Сообщение с префиксом ::error:: в логе шага Archive (или Audit quality).
           2. Протухшие куки YouTube: обновите секрет YT_COOKIES_B64.
           3. Секреты IA_EMAIL / IA_ACCESS / IA_SECRET.
+          4. Антиспам-блокировка archive.org: запуски по расписанию встанут на паузу на 12 часов.
 
           Сообщение закроется само после первого успешного запуска."
           fi
 
+      # --- в паузу после блокировки issue не закрываем: проблема ещё не решена ---
       - name: Close failure issue
-        if: success()
+        if: success() && steps.cd.outputs.active != 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
