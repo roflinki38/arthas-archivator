@@ -1,17 +1,17 @@
 name: archive
-
+​
 on:
   workflow_dispatch:
   schedule:
     - cron: "0 */6 * * *"
-
+​
 concurrency:
   group: archive
   cancel-in-progress: false
-
+​
 env:
   GH_REPO: ${{ github.repository }}
-
+​
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -26,7 +26,7 @@ jobs:
         with:
           sparse-checkout: scripts
           persist-credentials: false
-
+​
       - name: Init
         shell: bash
         env:
@@ -36,7 +36,7 @@ jobs:
           wid=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .workflow_id) \
             && gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/$wid/enable" \
             || echo "WARN: keepalive не сработал"
-
+​
       # --- Максимальная очистка диска: освобождает ~60-65 ГБ ---
       - name: Maximize disk space
         run: |
@@ -53,16 +53,16 @@ jobs:
           sudo rm -f /mnt/swapfile /swapfile 2>/dev/null || true
           echo "=== После очистки ==="
           df -h /
-
+​
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
+​
       # --- Кэширование пакетов pip (недельная ротация) ---
       - name: Set cache key
         id: cache-key
         run: echo "week=$(date +'%Y-%U')" >> "$GITHUB_OUTPUT"
-
+​
       - name: Cache pip packages
         uses: actions/cache@v4
         with:
@@ -70,17 +70,17 @@ jobs:
           key: ${{ runner.os }}-pip-${{ steps.cache-key.outputs.week }}
           restore-keys: |
             ${{ runner.os }}-pip-
-
+​
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-
+​
       # --- ffmpeg нужен yt-dlp для склейки видео и аудио ---
       - name: Install ffmpeg
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
-
+​
       - name: Install
         run: |
           pip install --prefer-binary -U "yt-dlp[default]" internetarchive
@@ -88,7 +88,7 @@ jobs:
           deno --version
           command -v ffmpeg >/dev/null || { echo "::error::ffmpeg не установлен"; exit 1; }
           ffmpeg -version | head -n 1
-
+​
       - name: IA config
         env:
           IA_ACCESS: ${{ secrets.IA_ACCESS }}
@@ -98,7 +98,7 @@ jobs:
           : "${IA_SECRET:?секрет IA_SECRET не задан}"
           mkdir -p ~/.config/internetarchive
           ( umask 077; printf "[s3]\naccess = %s\nsecret = %s\n" "$IA_ACCESS" "$IA_SECRET" > ~/.config/internetarchive/ia.ini )
-
+​
       - name: YouTube cookies
         shell: bash
         env:
@@ -107,7 +107,7 @@ jobs:
           : "${YT_COOKIES_B64:?секрет YT_COOKIES_B64 не задан}"
           echo "$YT_COOKIES_B64" | base64 -d > cookies.txt
           chmod 600 cookies.txt
-
+​
       # --- состояние между запусками лежит в ветке status: skip.txt, verified.txt, cooldown.txt ---
       - name: Load state
         shell: bash
@@ -134,7 +134,7 @@ jobs:
             *) echo "::warning::prev status недоступен (HTTP $code)"; echo '{}' > prev.json ;;
           esac
           echo "skip.txt: $(wc -l < skip.txt) строк, verified.txt: $(wc -l < verified.txt) строк"
-
+​
       # --- после антиспам-блокировки archive.org запуски по расписанию пропускаются 12 часов ---
       # --- ручной запуск (workflow_dispatch) пауза не останавливает ---
       - name: Cooldown check
@@ -150,7 +150,7 @@ jobs:
             fi
           fi
           echo "active=$active" >> "$GITHUB_OUTPUT"
-
+​
       # --- автоаудит качества: находит видео ниже 1080p и помечает на перезаливку, только если на YT появилось лучшее качество ---
       - name: Audit quality
         if: steps.cd.outputs.active != 'true'
@@ -162,21 +162,21 @@ jobs:
         run: |
           MIN_H=1080; TTL=2592000; NOW=$(date +%s)
           [ -n "${IA_EMAIL:-}" ] || { echo "IA_EMAIL не задан"; exit 1; }
-
+​
           ia search "uploader:$IA_EMAIL" --itemlist | { grep -E '^arthas-' || true; } | sort -u > a_items.txt
-
+​
           sort -k1,1 -k3,3nr verified.txt | awk '!s[$1]++' \
             | awk -v m=$MIN_H -v lim=$((NOW-TTL)) '$2>=m || $3>lim {print $1}' > a_valid.txt
           awk -v lim=$((NOW-TTL)) '$2>lim{print $1}' skip.txt > a_skip.txt
           cat a_valid.txt a_skip.txt | sort -u > a_excl.txt
-
+​
           awk 'FILENAME==ARGV[1]{d[$1]=1;next} {
             i=$1; sub(/^arthas-archive-/,"",i); sub(/^arthas-/,"",i); sub(/^stream-/,"",i); sub(/^video-/,"",i)
             if (!(i in d)) print $1
           }' a_excl.txt a_items.txt > a_todo.txt
           echo "Айтемов: $(wc -l < a_items.txt), к проверке: $(wc -l < a_todo.txt)"
           [ -s a_todo.txt ] || exit 0
-
+​
           check() {
             local i="$1" h
             h=$(ia metadata "$i" | jq -r '[ .files[]? | select(.source=="original") | select(.name|test("\\.(mp4|mkv|webm|mov)$";"i")) | (.height // empty | tonumber) ] | (max // -1)') || h=ERR
@@ -184,7 +184,7 @@ jobs:
           }
           export -f check
           timeout 2400 xargs -P 4 -n 1 bash -c 'check "$1"' _ < a_todo.txt > a_heights.txt || true
-
+​
           low=0; unk=0; good=0; err=0
           while read -r item h <&3; do
             id="${item#arthas-archive-}"; id="${id#arthas-}"; id="${id#stream-}"; id="${id#video-}"
@@ -196,7 +196,10 @@ jobs:
                   echo "$id $h $NOW" >> verified.txt; good=$((good+1))
                 else
                   yt_max=$(yt-dlp --cookies cookies.txt --no-match-filter --print "%(height)s" -f "bv/b" "https://youtu.be/$id" 2>/dev/null | sort -n | tail -n1 || echo 0)
-                  if [ -n "$yt_max" ] && [ "$yt_max" -gt "$h" ]; then
+                  if ! [[ "$yt_max" =~ ^[0-9]+$ ]] || [ "$yt_max" -eq 0 ]; then
+                    err=$((err+1))
+                    echo "Не удалось узнать качество на YouTube: $item, проверим в следующий раз"
+                  elif [ "$yt_max" -gt "$h" ]; then
                     if ia metadata "$item" --modify="subject:$TAG-incomplete" </dev/null >/dev/null; then
                       echo "$id $h $NOW" >> verified.txt; low=$((low+1))
                       echo "На перезаливку: $item (${h}p -> доступно ${yt_max}p)"
@@ -210,7 +213,7 @@ jobs:
             esac
           done 3< a_heights.txt
           echo "Аудит: >=${MIN_H}p или максимум: $good, на перезаливку: $low, неизвестно: $unk, ошибок: $err"
-
+​
       # --- Фильтр yt-dlp: валидный синтаксис (несколько --match-filter работают как OR) ---
       - name: Configure yt-dlp filter
         if: steps.cd.outputs.active != 'true'
@@ -225,7 +228,7 @@ jobs:
           --match-filter "live_status=was_live & !release_timestamp & timestamp <= $CUTOFF"
           EOF
           echo "Конфигурация yt-dlp создана. Стримы позднее $CUTOFF будут игнорироваться."
-
+​
       - name: Archive
         if: steps.cd.outputs.active != 'true'
         shell: bash
@@ -239,13 +242,13 @@ jobs:
         run: |
           sed -i 's/\r$//' scripts/archive.sh
           bash scripts/archive.sh
-
+​
       - name: Cleanup
         if: always()
         run: |
           rm -f cookies.txt
           rm -f ~/.config/yt-dlp/config
-
+​
       # --- сообщения о сбоях: issue в этом репозитории ---
       - name: Report failure
         if: failure() || cancelled()
@@ -259,16 +262,16 @@ jobs:
             gh issue comment "$n" --body "Снова остановился или был отменён: $url"
           else
             gh issue create --title "Архиватор остановился" --body "Запуск не дошёл до конца: $url
-
+​
           Что проверить по порядку:
           1. Сообщение с префиксом ::error:: в логе шага Archive (или Audit quality).
           2. Протухшие куки YouTube: обновите секрет YT_COOKIES_B64.
           3. Секреты IA_EMAIL / IA_ACCESS / IA_SECRET.
           4. Антиспам-блокировка archive.org: запуски по расписанию встанут на паузу на 12 часов.
-
+​
           Сообщение закроется само после первого успешного запуска."
           fi
-
+​
       # --- в паузу после блокировки issue не закрываем: проблема ещё не решена ---
       - name: Close failure issue
         if: success() && steps.cd.outputs.active != 'true'
@@ -280,3 +283,4 @@ jobs:
           for n in $(gh issue list --state open --search 'Архиватор остановился in:title' --json number --jq '.[].number' || true); do
             gh issue close "$n" --comment "Запуск прошёл успешно: $url" || true
           done
+​
