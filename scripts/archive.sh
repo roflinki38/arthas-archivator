@@ -249,12 +249,27 @@ while IFS=$'\t' read -r id _ts title <&3; do
   thumb_file=$(ls dl/"$id".jpg dl/"$id".webp dl/"$id".png 2>/dev/null | head -n 1 || true)
   [ -n "$thumb_file" ] && upload_files+=("$thumb_file")
 
-  rem=$(left)
+  # «total_tasks_queued exceeds global_limit» = перегружена общая очередь задач archive.org,
+  # это НЕ антиспам: ждём с нарастающими паузами и повторяем заливку того же файла
   set +e
-  upload_out=$(timeout "$rem" ia upload "$item" "${upload_files[@]}" "${meta[@]}" --checksum --retries 3 </dev/null 2>&1)
-  ia_rc=$?
+  for wait_s in 0 180 420 900 900 900; do
+    if [ "$wait_s" -gt 0 ]; then
+      [ "$(left)" -gt $(( wait_s + 1800 )) ] || break
+      echo "archive.org перегружен (очередь задач), ждём ${wait_s}с и повторяем заливку"
+      sleep "$wait_s"
+    fi
+    rem=$(left)
+    upload_out=$(timeout "$rem" ia upload "$item" "${upload_files[@]}" "${meta[@]}" --checksum --retries 3 </dev/null 2>&1)
+    ia_rc=$?
+    echo "$upload_out"
+    grep -qiE 'total_tasks_queued|global_limit' <<< "$upload_out" || break
+  done
   set -e
-  echo "$upload_out"
+
+  if [ "$ia_rc" -ne 0 ] && grep -qiE 'total_tasks_queued|global_limit' <<< "$upload_out"; then
+    echo "::warning::archive.org перегружен (очередь задач), заливка отложена. Продолжим по расписанию, это не блокировка."
+    exit 0
+  fi
 
   # Антиспам-блокировка Internet Archive: запоминаем время, чтобы запуски по расписанию
   # не продлевали блокировку (см. шаг Cooldown check в workflow), и останавливаемся
