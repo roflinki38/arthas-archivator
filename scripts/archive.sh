@@ -1,25 +1,26 @@
 #!/usr/bin/env bash
 # archive.sh: скачивает с YouTube (1080p, до 60G, либо 720p для гигантских стримов) и заливает на archive.org
 set -eo pipefail
-​
+
 touch skip.txt verified.txt cooldown.txt
 : > done.txt; : > ok.txt; : > ids.txt
+rm -f more.flag
 [ -f prev.json ] || : > prev.json
-​
+
 SKIP_TTL=2592000   # 30 дней
-HARD=20400         # 340 мин от старта джоба
-SOFT=19000         # после этого новые видео не начинаем
+HARD=19800         # 330 мин от старта джоба
+SOFT=18000         # после этого новые видео не начинаем
 JOB_START="${JOB_START:-$(date +%s)}"
 left() { echo $(( JOB_START + HARD - $(date +%s) )); }
-​
+
 # ---------- статус: status.json, skip.txt, verified.txt, cooldown.txt уходят в ветку status ----------
 fail_run=0
 cur_id=""; cur_title=""; cur_item=""; cur_stage="подготовка"
-​
+
 skip_add() {  # $1=id $2=через сколько дней повторить $3=причина
   echo "$1 $(( $(date +%s) - SKIP_TTL + $2 * 86400 )) $3" >> skip.txt
 }
-​
+
 write_status() {  # $1 = running|ended|failed
   : >> skip.txt; : >> verified.txt; : >> ok.txt; : >> done.txt; : >> cooldown.txt
   sort -k1,1 -k2,2nr skip.txt | awk '!s[$1]++' > skip.tmp && mv skip.tmp skip.txt
@@ -44,7 +45,7 @@ write_status() {  # $1 = running|ended|failed
     && git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" status ) || echo "WARN: статус не отправлен"
 }
 trap 'rc=$?; trap - EXIT; if [ "$rc" -eq 0 ]; then cur_stage="завершено"; write_status ended; else cur_stage="остановлено с ошибкой"; write_status failed || echo "::warning::статус не записан"; fi; exit "$rc"' EXIT
-​
+
 # ---------- имена айтемов на archive.org ----------
 existing_item() {
   local id="$1" n
@@ -54,7 +55,7 @@ existing_item() {
   return 1
 }
 item_of() { existing_item "$1" || printf 'arthas-archive-%s' "$1"; }
-​
+
 # ---------- 0. проверки и cookies ----------
 [ -n "${YT_COOKIES_B64:-}" ] || { echo "::error::Секрет YT_COOKIES_B64 не задан"; exit 1; }
 [ -n "${IA_EMAIL:-}" ] || { echo "::error::Секрет IA_EMAIL не задан, список загруженного был бы пустым"; exit 1; }
@@ -62,7 +63,7 @@ command -v ffmpeg >/dev/null || { echo "::error::ffmpeg не найден, об�
 echo "$YT_COOKIES_B64" | base64 -d > cookies.txt
 chmod 600 cookies.txt
 YT=(yt-dlp --cookies cookies.txt)
-​
+
 # ---------- 1. канал одним списком ----------
 : > ids_raw.txt
 list_tab() {
@@ -72,33 +73,33 @@ list_tab() {
 }
 list_tab streams
 list_tab videos
-​
+
 awk -F'\t' 'BEGIN{OFS="\t"} {
   ts = ($1 ~ /^[0-9]+$/) ? $1 : 0
   if (!seen[$2]++) print $2, ts, $3, ++n
 }' ids_raw.txt | sort -t$'\t' -k2,2n -k4,4nr | cut -f1-3 > ids.txt
 [ -s ids.txt ] || { echo "::error::Список пуст: блокировка, протухшие куки или неверный CHANNEL"; exit 1; }
-​
+
 # ---------- 2. что уже загружено ----------
 ia search "uploader:$IA_EMAIL AND NOT subject:$TAG-incomplete" --itemlist > ia_all.txt
 ia search "uploader:$IA_EMAIL AND subject:$TAG AND NOT subject:$TAG-incomplete" --itemlist > ia_tag.txt
-​
+
 { grep -E '^arthas-' ia_all.txt || true; cat ia_tag.txt; } \
   | sed -E 's/^(youtube|arthas-archive|arthas-stream|arthas-video|arthas)-//' | sort -u > done.txt
-​
+
 # ---------- 2.5 активные пропуски ----------
 awk -v lim=$(( $(date +%s) - SKIP_TTL )) '$2>lim{print $1}' skip.txt > skip_ids.txt
 cat done.txt skip_ids.txt > excl.txt
-​
+
 # ---------- 3. очередь ----------
 awk -F'\t' 'FILENAME==ARGV[1]{d[$1]=1; next} !($1 in d)' excl.txt ids.txt > todo.txt
 echo "Всего на канале: $(wc -l < ids.txt)"
 echo "Уже в архиве:    $(wc -l < done.txt)"
 echo "В пропусках:     $(wc -l < skip_ids.txt)"
 echo "К загрузке:      $(wc -l < todo.txt)"
-​
+
 write_status running || echo "::warning::не удалось обновить статус"
-​
+
 # Быстрая проверка куки
 first=$(head -n 1 todo.txt | cut -f1)
 if [ -n "$first" ]; then
@@ -109,7 +110,7 @@ if [ -n "$first" ]; then
     fi
   fi
 fi
-​
+
 # ---------- 4. скачиваем и заливаем ----------
 PERM='Private video|members-only|Join this channel|has been removed|Video unavailable|has been terminated|not available in your country|copyright'
 LIVE='live event will begin|Premieres in|live stream recording is not available'
@@ -117,21 +118,22 @@ bot_fails=0
 fmt_fails=0
 nofile_fails=0
 tag_fails=0
-​
+
 while IFS=$'\t' read -r id _ts title <&3; do
   rem=$(left)
   if [ $(( $(date +%s) - JOB_START )) -gt "$SOFT" ] || [ "$rem" -lt 900 ]; then
     echo "Лимит времени, продолжим в следующем запуске"
+    : > more.flag   # сигнал workflow: очередь не пуста, нужен автоперезапуск
     break
   fi
-​
+
   item=$(item_of "$id")
   echo "=== $item ==="
   cur_id="$id"; cur_item="$item"; cur_title="$title"; cur_stage="скачивание с YouTube"
   write_status running || echo "::warning::не удалось обновить статус"
   rm -rf dl; mkdir dl
   fallback720=0
-​
+
   # Основная попытка: до 60 ГБ, 1080p, объединение в единый mp4
   if ! timeout "$rem" "${YT[@]}" \
        -f "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b/b" -S "ext:mp4:m4a" \
@@ -140,7 +142,7 @@ while IFS=$'\t' read -r id _ts title <&3; do
        --sleep-requests 1 --sleep-interval 5 --max-sleep-interval 15 --retries 5 \
        --write-info-json --write-thumbnail \
        -o "dl/$id.%(ext)s" "https://youtu.be/$id" </dev/null 2>&1 | tee dl.log; then
-​
+
     # Авто-фоллбэк: если файл > 60G, пробуем скачать в 720p
     if grep -qiE 'larger than max-filesize' dl.log; then
       echo "Файл > 60G в 1080p. Пробуем скачать в качестве <= 720p..."
@@ -194,7 +196,7 @@ while IFS=$'\t' read -r id _ts title <&3; do
     fi
   fi
   bot_fails=0; fmt_fails=0
-​
+
   # Проверяем фильтр стримов
   if [ ! -f "dl/$id.info.json" ]; then
     if grep -qi 'does not pass filter' dl.log; then
@@ -207,7 +209,7 @@ while IFS=$'\t' read -r id _ts title <&3; do
     rm -rf dl
     continue
   fi
-​
+
   # Ищем итоговый видеофайл (любой из mp4/mkv/webm)
   video_file=$(ls dl/"$id".mp4 dl/"$id".mkv dl/"$id".webm 2>/dev/null | head -n 1 || true)
   if [ -z "$video_file" ]; then
@@ -221,39 +223,39 @@ while IFS=$'\t' read -r id _ts title <&3; do
     continue
   fi
   nofile_fails=0
-​
+
   jt=$(jq -r '.title // empty' "dl/$id.info.json")
   [ -n "$jt" ] && title="$jt"
   [ -n "$title" ] || title="$id"
   cur_title="$title"; cur_stage="заливка на archive.org"
   write_status running || echo "::warning::не удалось обновить статус"
-​
+
   vdate=$(jq -r '.upload_date // empty' "dl/$id.info.json" \
           | sed -E 's/^([0-9]{4})([0-9]{2})([0-9]{2})$/\1-\2-\3/')
   # Описание: убираем все ссылки (частый триггер антиспама), обрезаем до 1000 символов
   desc=$(jq -r '(.description // "") | gsub("https?://\\S+"; "") | gsub("[ \\t]+\n"; "\n") | gsub("\n{3,}"; "\n\n") | .[0:1000] | @html | gsub("\n";"<br>")' "dl/$id.info.json")
-​
+
   vh=$(jq -r '.height // empty' "dl/$id.info.json")
   [ -n "$vh" ] || vh=1080
   max_yt_h=$(jq '[.formats[]?.height // 0] | max' "dl/$id.info.json")
-​
+
   meta=(--metadata="mediatype:movies" --metadata="title:$title" --metadata="creator:$CREATOR"
         --metadata="source:https://youtu.be/$id" --metadata="subject:$TAG-incomplete")
   if [ -n "$vdate" ]; then meta+=(--metadata="date:$vdate"); fi
   if [ -n "$desc" ];  then meta+=(--metadata="description:$desc"); fi
-​
+
   # Заливаем только готовое видео, метаданные и превью (без промежуточных потоков)
   upload_files=("$video_file" "dl/$id.info.json")
   thumb_file=$(ls dl/"$id".jpg dl/"$id".webp dl/"$id".png 2>/dev/null | head -n 1 || true)
   [ -n "$thumb_file" ] && upload_files+=("$thumb_file")
-​
+
   rem=$(left)
   set +e
   upload_out=$(timeout "$rem" ia upload "$item" "${upload_files[@]}" "${meta[@]}" --checksum --retries 3 </dev/null 2>&1)
   ia_rc=$?
   set -e
   echo "$upload_out"
-​
+
   # Антиспам-блокировка Internet Archive: запоминаем время, чтобы запуски по расписанию
   # не продлевали блокировку (см. шаг Cooldown check в workflow), и останавливаемся
   if grep -qiE 'reduce your request rate|appears to be spam' <<< "$upload_out"; then
@@ -261,7 +263,7 @@ while IFS=$'\t' read -r id _ts title <&3; do
     echo "::error::Archive.org временно заблокировал заливку (anti-spam). Запуски по расписанию приостановлены на 12 часов."
     exit 1
   fi
-​
+
   if [ "$ia_rc" -eq 0 ]; then
     # Айтем появляется на archive.org не сразу после заливки: ждём с нарастающими паузами (до ~8 мин)
     tagged=0
@@ -296,7 +298,6 @@ while IFS=$'\t' read -r id _ts title <&3; do
     echo "FAIL upload $item"
     fail_run=$((fail_run+1))
   fi
-​
+
   rm -rf dl
 done 3< todo.txt
-​
