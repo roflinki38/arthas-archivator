@@ -232,7 +232,7 @@ footer a{text-decoration:underline;text-underline-offset:3px}
       <h1>Пожизненный бан неизбежен</h1>
       <p>Стримы и ролики Папича автоматически сохраняются на Internet Archive.</p>
       <div class="prog" aria-live="polite">
-        Сохранено <b data-p="done">—</b> из <b data-p="total">—</b> видео
+        Сохранено <b data-p="done">—</b> из <b data-p="total">—</b> видео (<b data-p="pct">—</b>)
         <div class="bar" role="progressbar" aria-label="Прогресс архивации" aria-valuemin="0" aria-valuemax="100" data-p="bar"><i data-p="fill"></i></div>
         <span data-p="status"><span class="dot wait"></span>загружаю…</span><span data-p="nowbox" hidden> · сейчас качается <a data-p="nowlink" target="_blank" rel="noopener"></a></span>
       </div>
@@ -868,13 +868,17 @@ async function tick() {
 
   setP("done", e => e.textContent = done != null ? nf.format(done) : "—");
   setP("total", e => e.textContent = total != null ? nf.format(total) : "—");
-  
-  
+  setP("pct", e => e.textContent = pct != null ? pct + "%" : "—");
   setP("fill", e => e.style.width = (pct || 0) + "%");
   setP("bar", e => e.setAttribute("aria-valuenow", pct || 0));
-    const c = s.current || {}, active = s.state === "running" && c.id;
+  
+  const c = s.current || {}, active = s.state === "running" && c.id;
   setP("nowbox", e => e.hidden = !active);
-  if (active) setP("nowlink", e => { e.textContent = c.title || c.id; e.href = "https://youtu.be/" + encodeURIComponent(c.id); });
+  if (active) setP("nowlink", e => {
+    const curPct = c.percent != null ? ` (${Math.round(c.percent)}%)` : (c.progress != null ? ` (${Math.round(c.progress)}%)` : "");
+    e.textContent = (c.title || c.id) + curPct;
+    e.href = "https://youtu.be/" + encodeURIComponent(c.id);
+  });
 
   if (!base) setStatus(fails ? "err" : "wait", fails ? "статус сейчас недоступен" : "данных о запуске пока нет");
   else {
