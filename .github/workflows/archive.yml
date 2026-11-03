@@ -303,11 +303,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OUTCOME: ${{ steps.archive.outcome }}
-          CANCELLED: ${{ cancelled() }}
+          JOB_STATUS: ${{ job.status }}
           RETRY: ${{ github.event.inputs.retry || '0' }}
         run: |
           elapsed=$(( $(date +%s) - ${JOB_START:-$(date +%s)} ))
-          echo "outcome=$OUTCOME cancelled=$CANCELLED elapsed=${elapsed}s retry=$RETRY more.flag=$([ -f more.flag ] && echo yes || echo no)"
+          echo "outcome=$OUTCOME job_status=$JOB_STATUS elapsed=${elapsed}s retry=$RETRY more.flag=$([ -f more.flag ] && echo yes || echo no)"
           if [ -s cooldown.txt ]; then
             ts=$(head -n 1 cooldown.txt | tr -dc '0-9')
             if [ -n "$ts" ] && [ $(( $(date +%s) - ts )) -lt 43200 ]; then
@@ -315,7 +315,7 @@ jobs:
             fi
           fi
           next=""
-          if [ "$CANCELLED" = "true" ]; then
+          if [ "$JOB_STATUS" = "cancelled" ]; then
             if [ "$elapsed" -ge 19500 ]; then next=0; echo "Задачу убил таймаут, перезапускаем"
             else echo "Ручная отмена, не перезапускаем"; fi
           elif [ "$OUTCOME" = "success" ]; then
