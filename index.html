@@ -501,7 +501,7 @@ const $ = id => document.getElementById(id);
 const CREATOR = "Arthas (Папич)";
 const BASE_Q = 'creator:"' + CREATOR + '" AND NOT subject:papich-yt-archive-incomplete';
 const ROWS = 24;
-const FIELDS = ["identifier", "title", "date", "addeddate"];
+const FIELDS = ["identifier", "title", "date", "addeddate", "duration"];
 const SITE = "ПапичTube";
 
 /* ---------- helpers ---------- */
@@ -556,6 +556,7 @@ function card(d, opts = {}) {
   const a = el("a", { className: "vcard", href: "#/watch/" + encodeURIComponent(id), title });
   const th = el("div", { className: "thumb" }, el("img", { src: thumbUrl(id), alt: "", loading: "lazy", decoding: "async" }));
   if (opts.left && h) th.append(el("span", { className: "tag", textContent: "осталось " + fmtT(h.d - h.t) }));
+  else if (+first(d.duration) > 0) th.append(el("span", { className: "tag", textContent: fmtT(+first(d.duration)) }));
   if (Date.now() - new Date(first(d.addeddate)) < 1728e5) th.append(el("span", { className: "tag new", textContent: "новое" }));
   if (h && h.d) th.append(el("div", { className: "watched-bg" }), el("div", { className: "watched", style: "width:" + Math.min(100, h.t / h.d * 100) + "%" }));
   a.append(th, el("div", { className: "info" },
@@ -1174,6 +1175,7 @@ async function tick() {
     else if (s.state === "running") setStatus("live", "обновлено " + when);
     else setStatus("", "обновлено " + when);
   }
+  loadStats();
   if (!document.hidden) ptimer = setTimeout(tick, Math.min(POLL_MS * 2 ** fails, 300000));
 }
 document.addEventListener("visibilitychange", () => document.hidden ? clearTimeout(ptimer) : tick());
@@ -1188,30 +1190,42 @@ function countS(k, n) {
   (function f(t) { const p = Math.min(1, (t - t0) / 1000), e = 1 - Math.pow(1 - p, 3); els.forEach(x => x.textContent = nf.format(Math.round(a + (n - a) * e))); if (p < 1) requestAnimationFrame(f); })(t0);
 }
 const setS = (k, t) => document.querySelectorAll('[data-s="' + k + '"]').forEach(e => e.textContent = t);
+let fbAt = 0, fbStamps = [], sparkSig = "";
 async function loadStats() {
-  const key = d => d.toLocaleDateString("sv"), iso = d => d.toISOString().slice(0, 10), days = [];
+  const key = d => d.toLocaleDateString("sv"), days = [];
   const d0 = new Date(); d0.setHours(12, 0, 0, 0);
   for (let i = 29; i >= 0; i--) { const d = new Date(d0); d.setDate(d.getDate() - i); days.push(d); }
-  const from = new Date(d0), to = new Date(d0); from.setDate(from.getDate() - 31); to.setDate(to.getDate() + 2);
-  try {
-    const r = await search(BASE_Q + " AND addeddate:[" + iso(from) + " TO " + iso(to) + "]", "addeddate desc", 1, 3000, ["addeddate"]);
-    const by = {}; let last = 0;
-    r.docs.forEach(d => { const t = new Date(first(d.addeddate)); if (isNaN(t)) return; last = Math.max(last, +t); by[key(t)] = (by[key(t)] || 0) + 1; });
-    const cnt = n => days.slice(-n).reduce((a, d) => a + (by[key(d)] || 0), 0);
-    const today = cnt(1);
-    countS("today", today); setS("todayH", today ? "" : "пока ничего");
-    countS("week", cnt(7)); countS("month", cnt(30));
-    setS("last", last ? ago(last) : "—");
-    const d14 = days.slice(-14), max = Math.max(1, ...d14.map(d => by[key(d)] || 0));
-    $("spark").classList.toggle("in", !sparkDone); sparkDone = true;
-    $("spark").replaceChildren(...d14.map((d, i) => { const c = by[key(d)] || 0; return el("i", { className: (c ? "v " : "") + (i === 13 ? "t" : ""), style: "height:" + Math.max(4, c / max * 100) + "%;--i:" + i, title: d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) + ": " + c }); }));
-    $("sparx").replaceChildren(...d14.map(d => el("span", { textContent: d.getDate() })));
-  } catch (e) {}
+  // основной источник: recent в status.json (время загрузок, пишет archive.sh); запасной: поиск по archive.org не чаще раза в 5 минут
+  let stamps = base && Array.isArray(base.recent) ? base.recent.map(x => x * 1000) : null;
+  if (!stamps) {
+    if (Date.now() - fbAt > 300000) {
+      fbAt = Date.now();
+      const iso = d => d.toISOString().slice(0, 10), from = new Date(d0), to = new Date(d0);
+      from.setDate(from.getDate() - 31); to.setDate(to.getDate() + 2);
+      try {
+        const r = await search(BASE_Q + " AND addeddate:[" + iso(from) + " TO " + iso(to) + "]", "addeddate desc", 1, 3000, ["addeddate"]);
+        fbStamps = r.docs.map(d => +new Date(first(d.addeddate))).filter(t => t > 0);
+      } catch (e) { return; }
+    }
+    stamps = fbStamps;
+  }
+  const by = {}; let last = 0;
+  stamps.forEach(t => { last = Math.max(last, t); const k = key(new Date(t)); by[k] = (by[k] || 0) + 1; });
+  const cnt = n => days.slice(-n).reduce((a, d) => a + (by[key(d)] || 0), 0);
+  const today = cnt(1);
+  countS("today", today); setS("todayH", today ? "" : "пока ничего");
+  countS("week", cnt(7)); countS("month", cnt(30));
+  setS("last", last ? ago(last) : "—");
+  const d14 = days.slice(-14), vals = d14.map(d => by[key(d)] || 0), sig = vals.join();
+  if (sig === sparkSig) return;
+  sparkSig = sig;
+  const max = Math.max(1, ...vals);
+  $("spark").classList.toggle("in", !sparkDone); sparkDone = true;
+  $("spark").replaceChildren(...d14.map((d, i) => el("i", { className: (vals[i] ? "v " : "") + (i === 13 ? "t" : ""), style: "height:" + Math.max(4, vals[i] / max * 100) + "%;--i:" + i, title: d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) + ": " + vals[i] })));
+  $("sparx").replaceChildren(...d14.map(d => el("span", { textContent: d.getDate() })));
 }
 addEventListener("scroll", () => document.querySelector(".top").classList.toggle("scrolled", scrollY > 8), { passive: true });
 tick();
-loadStats();
-setInterval(() => { if (!document.hidden) loadStats(); }, 300000);
 </script>
 </body>
 </html>
