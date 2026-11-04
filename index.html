@@ -6,6 +6,10 @@
 <title>Архив Папича</title>
 <meta name="description" content="Все стримы и видео Папича, сохранённые на Internet Archive. Смотрите без YouTube.">
 <meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#141414">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Архив Папича">
+<meta property="og:description" content="Стримы и ролики Папича, сохранённые на Internet Archive. Смотрите без YouTube.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='%23ff5a3c'/></svg>">
 <style>
 :root{
@@ -211,13 +215,46 @@ footer a{text-decoration:underline;text-underline-offset:3px}
   .side .vcard{grid-template-columns:140px 1fr}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- v2: оформление и статистика ---------- */
+.top{background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.brand{display:flex;align-items:center;gap:10px;letter-spacing:-.01em}
+.mark{width:22px;height:22px;border-radius:7px;background:var(--acc);display:grid;place-items:center;flex:none}
+.mark::after{content:"";margin-left:2px;border-left:7px solid #fff;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent}
+.intro{max-width:none;padding:56px 0 8px}
+.intro h1{font-size:clamp(30px,5.2vw,52px);line-height:1.05;letter-spacing:-.03em;max-width:16ch;margin-bottom:12px}
+.intro>p,.prog{max-width:640px}
+.intro>p{font-size:17px}
+.bar{height:6px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:32px}
+.stat{padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--s1)}
+.stat.hl{border-color:var(--acc)}
+.stat .n{display:block;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.stat .n.sm{font-size:22px;line-height:1.4}
+.stat .l{display:block;margin-top:6px;font-size:14px}
+.stat .h{display:block;min-height:1.3em;font-size:12px;color:var(--mut)}
+.chart{margin-top:12px;padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--s1)}
+.chart-h{display:flex;justify-content:space-between;gap:12px;font-size:14px;margin-bottom:14px}
+.chart-h span:last-child{color:var(--mut)}
+.spark{display:flex;align-items:flex-end;gap:6px;height:84px}
+.spark i{flex:1;height:4%;min-height:3px;border-radius:4px 4px 1px 1px;background:var(--s2)}
+.spark i.v{background:color-mix(in srgb,var(--acc) 50%,var(--s2))}
+.spark i.t{background:var(--acc)}
+.spark-x{display:flex;gap:6px;margin-top:6px;font-size:11px;color:var(--mut)}
+.spark-x span{flex:1;text-align:center}
+.thumb{border-radius:10px;box-shadow:inset 0 0 0 1px var(--line)}
+.vcard:hover .vtitle{text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.tag.new{left:8px;right:auto;top:8px;bottom:auto;background:var(--acc)}
+.sec-h h2{font-size:22px;letter-spacing:-.01em}
+.tabs button[aria-checked=true]{border-bottom-color:var(--acc)}
+@media (max-width:640px){.stats{grid-template-columns:1fr 1fr}.stat .n{font-size:26px}.stat{padding:14px}}
 </style>
 
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="#/">Архив Папича</a>
+    <a class="brand" href="#/"><span class="mark"></span>Архив Папича</a>
     <form class="search" id="sform" role="search">
       <input id="q" type="search" placeholder="Поиск" aria-label="Поиск по архиву" autocomplete="off">
       <button type="button" class="clr" id="qclr" aria-label="Очистить поиск">×</button>
@@ -235,6 +272,19 @@ footer a{text-decoration:underline;text-underline-offset:3px}
         Сохранено <b data-p="done">—</b> из <b data-p="total">—</b> видео (<b data-p="pct">—</b>)
         <div class="bar" role="progressbar" aria-label="Прогресс архивации" aria-valuemin="0" aria-valuemax="100" data-p="bar"><i data-p="fill"></i></div>
         <span data-p="status"><span class="dot wait"></span>загружаю…</span><span data-p="nowbox" hidden> · сейчас качается <a data-p="nowlink" target="_blank" rel="noopener"></a></span>
+      </div>
+      <div class="stats" id="stats">
+        <div class="stat hl"><span class="n" data-s="today">—</span><span class="l">загружено сегодня</span><span class="h" data-s="todayH"></span></div>
+        <div class="stat"><span class="n" data-s="week">—</span><span class="l">за неделю</span><span class="h">последние 7 дней</span></div>
+        <div class="stat"><span class="n" data-s="month">—</span><span class="l">за месяц</span><span class="h">последние 30 дней</span></div>
+        <div class="stat"><span class="n" data-s="queue">—</span><span class="l">осталось в очереди</span><span class="h" data-s="queueH"></span></div>
+        <div class="stat"><span class="n" data-s="run">—</span><span class="l">в текущем запуске</span><span class="h" data-s="runH"></span></div>
+        <div class="stat"><span class="n sm" data-s="last">—</span><span class="l">последняя загрузка</span><span class="h"></span></div>
+      </div>
+      <div class="chart">
+        <div class="chart-h"><span>Загрузки по дням</span><span>последние 14 дней</span></div>
+        <div class="spark" id="spark" role="img" aria-label="График загрузок за 14 дней"></div>
+        <div class="spark-x" id="sparx" aria-hidden="true"></div>
       </div>
     </section>
 
@@ -312,7 +362,7 @@ const $ = id => document.getElementById(id);
 const CREATOR = "Arthas (Папич)";
 const BASE_Q = 'creator:"' + CREATOR + '" AND NOT subject:papich-yt-archive-incomplete';
 const ROWS = 24;
-const FIELDS = ["identifier", "title", "date", "addeddate", "downloads"];
+const FIELDS = ["identifier", "title", "date", "addeddate"];
 const SITE = "Архив Папича";
 
 /* ---------- helpers ---------- */
@@ -337,15 +387,14 @@ function ago(d) {
   return rtf.format(Math.round(s / 86400 / 365), "year");
 }
 const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? b : c; };
-const views = n => n == null ? "" : new Intl.NumberFormat("ru", { notation: "compact" }).format(n) + " " + plural(n, "просмотр", "просмотра", "просмотров");
 const first = v => Array.isArray(v) ? v[0] : v;
 const dateOf = d => first(d.date) || first(d.addeddate);
 const shortDate = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" }); };
 const fmtT = s => { s = Math.max(0, Math.floor(s)); const h = s / 3600 | 0, m = (s % 3600) / 60 | 0, x = String(s % 60).padStart(2, "0"); return h ? h + ":" + String(m).padStart(2, "0") + ":" + x : m + ":" + x; };
 
-function search(q, sort, page, rows = ROWS) {
+function search(q, sort, page, rows = ROWS, fields = FIELDS) {
   const p = new URLSearchParams({ q, rows, page, output: "json" });
-  FIELDS.forEach(f => p.append("fl[]", f));
+  fields.forEach(f => p.append("fl[]", f));
   p.append("sort[]", sort);
   return getJSON("https://archive.org/advancedsearch.php?" + p).then(j => j.response);
 }
@@ -368,10 +417,11 @@ function card(d, opts = {}) {
   const a = el("a", { className: "vcard", href: "#/watch/" + encodeURIComponent(id), title });
   const th = el("div", { className: "thumb" }, el("img", { src: thumbUrl(id), alt: "", loading: "lazy", decoding: "async" }));
   if (opts.left && h) th.append(el("span", { className: "tag", textContent: "осталось " + fmtT(h.d - h.t) }));
+  if (Date.now() - new Date(first(d.addeddate)) < 1728e5) th.append(el("span", { className: "tag new", textContent: "новое" }));
   if (h && h.d) th.append(el("div", { className: "watched-bg" }), el("div", { className: "watched", style: "width:" + Math.min(100, h.t / h.d * 100) + "%" }));
   a.append(th, el("div", { className: "info" },
     el("div", { className: "vtitle", textContent: title }),
-    el("div", { className: "vmeta", textContent: [shortDate(dateOf(d)), views(d.downloads)].filter(Boolean).join(" · ") })));
+    el("div", { className: "vmeta", textContent: shortDate(dateOf(d)) })));
   return a;
 }
 const skeleton = () => el("div", { className: "vcard skel", ariaHidden: "true" }, el("div", { className: "thumb" }), el("div", { className: "line" }), el("div", { className: "line", style: "width:55%" }));
@@ -382,7 +432,7 @@ function renderContinue() {
   $("contRow").replaceChildren(...items.map(x => {
     const wrap = el("div");
     const rm = el("button", { className: "rm", type: "button", ariaLabel: "Убрать из истории", textContent: "×", onclick: e => { e.preventDefault(); removeHist(x.id); renderContinue(); } });
-    wrap.append(card({ identifier: x.id, title: x.title, date: x.date, downloads: x.downloads }, { left: true }), rm);
+    wrap.append(card({ identifier: x.id, title: x.title, date: x.date }, { left: true }), rm);
     return wrap;
   }));
 }
@@ -871,6 +921,10 @@ async function tick() {
   setP("pct", e => e.textContent = pct != null ? pct + "%" : "—");
   setP("fill", e => e.style.width = (pct || 0) + "%");
   setP("bar", e => e.setAttribute("aria-valuenow", pct || 0));
+  setS("queue", total != null && done != null ? nf.format(Math.max(0, total - done)) : "—");
+  setS("queueH", s.skipped ? "пропущено: " + nf.format(s.skipped) : "");
+  setS("run", s.run ? nf.format(s.run.ok) : "—");
+  setS("runH", s.run && s.run.failed ? "ошибок: " + nf.format(s.run.failed) : "");
   
   const c = s.current || {}, active = s.state === "running" && c.id;
   setP("nowbox", e => e.hidden = !active);
@@ -891,7 +945,29 @@ async function tick() {
   if (!document.hidden) ptimer = setTimeout(tick, Math.min(POLL_MS * 2 ** fails, 300000));
 }
 document.addEventListener("visibilitychange", () => document.hidden ? clearTimeout(ptimer) : tick());
+const setS = (k, t) => document.querySelectorAll('[data-s="' + k + '"]').forEach(e => e.textContent = t);
+async function loadStats() {
+  const key = d => d.toLocaleDateString("sv"), iso = d => d.toISOString().slice(0, 10), days = [];
+  const d0 = new Date(); d0.setHours(12, 0, 0, 0);
+  for (let i = 29; i >= 0; i--) { const d = new Date(d0); d.setDate(d.getDate() - i); days.push(d); }
+  const from = new Date(d0), to = new Date(d0); from.setDate(from.getDate() - 31); to.setDate(to.getDate() + 2);
+  try {
+    const r = await search(BASE_Q + " AND addeddate:[" + iso(from) + " TO " + iso(to) + "]", "addeddate desc", 1, 3000, ["addeddate"]);
+    const by = {}; let last = 0;
+    r.docs.forEach(d => { const t = new Date(first(d.addeddate)); if (isNaN(t)) return; last = Math.max(last, +t); by[key(t)] = (by[key(t)] || 0) + 1; });
+    const cnt = n => days.slice(-n).reduce((a, d) => a + (by[key(d)] || 0), 0);
+    const today = cnt(1);
+    setS("today", nf.format(today)); setS("todayH", today ? "" : "пока ничего");
+    setS("week", nf.format(cnt(7))); setS("month", nf.format(cnt(30)));
+    setS("last", last ? ago(last) : "—");
+    const d14 = days.slice(-14), max = Math.max(1, ...d14.map(d => by[key(d)] || 0));
+    $("spark").replaceChildren(...d14.map((d, i) => { const c = by[key(d)] || 0; return el("i", { className: (c ? "v " : "") + (i === 13 ? "t" : ""), style: "height:" + Math.max(4, c / max * 100) + "%", title: d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) + ": " + c }); }));
+    $("sparx").replaceChildren(...d14.map(d => el("span", { textContent: d.getDate() })));
+  } catch (e) {}
+}
 tick();
+loadStats();
+setInterval(() => { if (!document.hidden) loadStats(); }, 300000);
 </script>
 </body>
 </html>
