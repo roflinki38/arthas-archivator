@@ -219,6 +219,31 @@ jobs:
           done 3< a_heights.txt
           echo "Аудит: >=${MIN_H}p или максимум: $good, на перезаливку: $low, неизвестно: $unk, ошибок: $err"
 
+      # --- длительность старых видео: берём из метаданных файлов на archive.org и пишем в поле duration (для плашек на карточках сайта) ---
+      - name: Backfill durations
+        if: steps.cd.outputs.active != 'true'
+        shell: bash
+        continue-on-error: true
+        env:
+          TAG: papich-yt-archive
+          IA_EMAIL: ${{ secrets.IA_EMAIL }}
+        run: |
+          [ -n "${IA_EMAIL:-}" ] || { echo "IA_EMAIL не задан"; exit 1; }
+          ia search "uploader:$IA_EMAIL AND subject:$TAG AND NOT subject:$TAG-incomplete" -f identifier -f duration \
+            | jq -r 'select((.duration // "") == "") | .identifier' | head -n 100 > dur_todo.txt || true
+          echo "Без длительности (берём в этом запуске): $(wc -l < dur_todo.txt)"
+          [ -s dur_todo.txt ] || exit 0
+          fix() {
+            local i="$1" d
+            d=$(ia metadata "$i" | jq -r '[.files[]? | select(.name|test("\\.(mp4|mkv|webm|mov)$";"i")) | (.length // empty | tonumber)] | (max // empty)') || return 0
+            [[ "$d" =~ ^[0-9.]+$ ]] || return 0
+            d="${d%.*}"; [ "${d:-0}" -gt 0 ] || return 0
+            ia metadata "$i" --modify="duration:$d" </dev/null >/dev/null || echo "Не удалось записать duration: $i"
+            sleep 1
+          }
+          export -f fix
+          timeout 900 xargs -P 2 -n 1 bash -c 'fix "$1"' _ < dur_todo.txt || true
+
       # --- Фильтр yt-dlp: валидный синтаксис (несколько --match-filter работают как OR) ---
       - name: Configure yt-dlp filter
         if: steps.cd.outputs.active != 'true'
