@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Архив Папича</title>
+<title>ПапичTube</title>
 <meta name="description" content="Все стримы и видео Папича, сохранённые на Internet Archive. Смотрите без YouTube.">
 <meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#141414">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Архив Папича">
+<meta property="og:title" content="ПапичTube">
 <meta property="og:description" content="Стримы и ролики Папича, сохранённые на Internet Archive. Смотрите без YouTube.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='%23ff5a3c'/></svg>">
 <style>
@@ -322,13 +322,71 @@ dialog[open]::backdrop{animation:fade .3s}
 .sug-x{flex:none;width:26px;height:26px;border:0;border-radius:6px;background:none;color:var(--mut);font-size:16px}
 .sug-x:hover{background:var(--s2);color:var(--fg)}
 @media (max-width:640px){.prog{padding:16px}.now a{max-width:60vw}.stats{grid-template-columns:1fr 1fr}.stat .n{font-size:26px}.stat{padding:14px}}
+
+/* ---------- адаптивный плеер и страница ---------- */
+.player{--arn:1.7778;container-type:inline-size;aspect-ratio:var(--arn);width:min(100%,calc(max(100dvh - 170px,240px) * var(--arn)));max-height:none;margin-inline:auto;transition:width .3s var(--ease)}
+.watch.theater .player{width:auto;aspect-ratio:auto;height:min(calc(100vw / var(--arn)),calc(100dvh - 120px));min-height:240px;margin-inline:-32px;transition:none}
+.w-title{font-size:clamp(18px,2.4vw,24px)}
+@container (max-width:560px){
+  .yp-hide-sm{display:none}
+  .yp-btn{width:38px;height:40px}
+  .yp-btn svg{width:23px;height:23px}
+  .yp-time{padding:0 4px;font-size:12px}
+  .yp-ctrl{padding:50px 6px 2px}
+  .yp-menu{right:6px;bottom:56px;min-width:200px;max-width:calc(100% - 12px)}
+  .yp-vol:hover .yp-vslider,.yp-vol:focus-within .yp-vslider{width:0;margin:0}
+}
+@container (max-width:380px){
+  .yp-btn{width:34px}
+  .yp-btn svg{width:21px;height:21px}
+  .yp-bigplay{width:52px;height:52px;margin:-26px 0 0 -26px}
+  .yp-toast{font-size:13px;padding:7px 12px}
+}
+.yp-end img{width:min(320px,40cqw)}
+.yp-end .t{font-size:clamp(13px,3cqw,16px)}
+@media (min-width:641px) and (max-width:1000px){
+  .side{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+}
+@media (max-width:1000px){.player{width:min(100%,calc(max(100dvh - 140px,240px) * var(--arn)))}}
+@media (max-width:640px){
+  .player,.watch.theater .player{width:auto;height:auto;min-height:0;aspect-ratio:var(--arn);max-height:calc(100dvh - 130px);margin-inline:-16px;border-radius:0}
+  .watch.theater .player{margin-inline:-16px}
+  .top .wrap{height:56px}
+  .brand{font-size:16px}
+  .sec-h{gap:8px 16px}
+  .sec-h .sp{display:none}
+  .sec-h .tabs{order:3;width:100%;gap:18px}
+  .prog-top{flex-wrap:wrap;gap:4px 12px}
+  .chart-h{flex-wrap:wrap;gap:2px 12px}
+  .w-bar{gap:6px 14px}
+  dialog{padding:20px 16px}
+}
+@media (max-width:380px){.intro h1{font-size:26px}.stats{grid-template-columns:1fr}.stat .n{font-size:24px}}
+@media (max-height:520px) and (orientation:landscape){
+  .player{width:min(100%,calc(max(100dvh - 90px,200px) * var(--arn)))}
+  .top{position:static}
+}
+/* ---------- скроллбары ---------- */
+:root{--sb:color-mix(in srgb,var(--fg) 24%,transparent);--sbh:color-mix(in srgb,var(--fg) 46%,transparent)}
+.yp-menu{--sb:rgba(255,255,255,.28);--sbh:rgba(255,255,255,.55)}
+@supports not selector(::-webkit-scrollbar){*{scrollbar-width:thin;scrollbar-color:var(--sb) transparent}}
+@supports selector(::-webkit-scrollbar){
+  ::-webkit-scrollbar{width:14px;height:14px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{min-height:44px;min-width:44px;border:4px solid transparent;border-radius:999px;background:var(--sb);background-clip:padding-box;transition:background .2s}
+  ::-webkit-scrollbar-thumb:hover{background:var(--sbh);background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:active{background:var(--acc);background-clip:padding-box}
+  ::-webkit-scrollbar-corner{background:transparent}
+  .dd-menu::-webkit-scrollbar,.sug::-webkit-scrollbar,.yp-menu::-webkit-scrollbar{width:12px}
+  .rowscroll::-webkit-scrollbar{height:12px}
+}
 </style>
 
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="#/"><span class="mark"></span>Архив Папича</a>
+    <a class="brand" href="#/"><span class="mark"></span>ПапичTube</a>
     <form class="search" id="sform" role="search">
       <input id="q" type="search" placeholder="Поиск" aria-label="Поиск по архиву" autocomplete="off">
       <button type="button" class="clr" id="qclr" aria-label="Очистить поиск">×</button>
@@ -444,7 +502,7 @@ const CREATOR = "Arthas (Папич)";
 const BASE_Q = 'creator:"' + CREATOR + '" AND NOT subject:papich-yt-archive-incomplete';
 const ROWS = 24;
 const FIELDS = ["identifier", "title", "date", "addeddate"];
-const SITE = "Архив Папича";
+const SITE = "ПапичTube";
 
 /* ---------- helpers ---------- */
 async function getJSON(url, ms = 15000) {
@@ -789,7 +847,7 @@ function createPlayer({ id, title, sources, poster, onFail, getNext, autoNext = 
     vIn.value = m ? 0 : v.volume; vIn.style.accentColor = "#fff";
     localStorage.setItem("yp:vol", v.volume); localStorage.setItem("yp:muted", v.muted ? "1" : "0");
   });
-  v.addEventListener("loadedmetadata", () => { v.playbackRate = speed; draw(); });
+  v.addEventListener("loadedmetadata", () => { v.playbackRate = speed; setAr(v.videoWidth, v.videoHeight); draw(); });
   v.addEventListener("ratechange", () => { speed = v.playbackRate; localStorage.setItem("yp:speed", speed); });
 
   function draw() {
@@ -948,13 +1006,14 @@ function linkify(text) {
   return out;
 }
 
+function setAr(w, h) { w = +w; h = +h; if (w > 0 && h > 0) $("player").style.setProperty("--arn", Math.min(2.4, Math.max(.75, w / h))); }
 let watchGen = 0;
 function destroyPlayer() { if (activePlayer) { activePlayer.destroy(); activePlayer = null; } }
 
 async function openWatch(id) {
   const gen = ++watchGen;
   const player = $("player");
-  destroyPlayer(); player.replaceChildren();
+  destroyPlayer(); player.replaceChildren(); player.style.removeProperty("--arn");
   $("wtitle").textContent = "Загрузка…"; $("wmeta").textContent = ""; $("wdesc").textContent = "";
   $("wia").href = "https://archive.org/details/" + encodeURIComponent(id);
   $("wyt").hidden = true; $("more").hidden = true; $("desc").classList.add("clamp"); $("desc").hidden = false;
@@ -983,7 +1042,7 @@ async function openWatch(id) {
   if (yt) { $("wyt").href = "https://youtu.be/" + yt; $("wyt").hidden = false; }
 
   const vids = m ? pickVideo(m.files) : [];
-  const embed = () => { destroyPlayer(); player.replaceChildren(el("iframe", { src: "https://archive.org/embed/" + encodeURIComponent(id), allow: "fullscreen; autoplay; picture-in-picture", allowFullscreen: true, title })); };
+  const embed = () => { destroyPlayer(); player.style.removeProperty("--arn"); player.replaceChildren(el("iframe", { src: "https://archive.org/embed/" + encodeURIComponent(id), allow: "fullscreen; autoplay; picture-in-picture", allowFullscreen: true, title })); };
   if (!m) { player.replaceChildren(el("div", { className: "empty", style: "color:#ccc;position:absolute;inset:0;display:grid;place-items:center" }, el("div", {}, el("b", { textContent: "Видео не загрузилось", style: "color:#fff" }), "Internet Archive не ответил.", el("br"), el("button", { className: "btn", type: "button", textContent: "Повторить", onclick: () => openWatch(id) })))); return; }
   if (!vids.length) return embed();
 
@@ -993,6 +1052,7 @@ async function openWatch(id) {
     label: f.height ? f.height + "p" : (f.source === "original" ? "Оригинал" : (f.format || f.name.split(".").pop().toUpperCase())),
     size: f.size ? (f.size / 1e6 >= 1000 ? (f.size / 1e9).toFixed(1) + " ГБ" : Math.round(f.size / 1e6) + " МБ") : ""
   }));
+  const dim = vids.find(f => +f.width > 0 && +f.height > 0); if (dim) setAr(dim.width, dim.height);
   activePlayer = createPlayer({ id, title, sources, poster: thumbUrl(id), onFail: embed, getNext: () => sideDocs[0], autoNext: () => autoplayBox.checked });
   player.replaceChildren(activePlayer);
   activePlayer.focus({ preventScroll: true });
