@@ -3,7 +3,7 @@
 set -eo pipefail
 
 touch skip.txt verified.txt cooldown.txt
-: > done.txt; : > ok.txt; : > ids.txt
+: > done.txt; : > ok.txt; : > ids.txt; : > up_ts.txt; : > seed_ts.txt
 rm -f more.flag
 [ -f prev.json ] || : > prev.json
 
@@ -34,10 +34,15 @@ write_status() {  # $1 = running|ended|failed
   fi
   read -r tot arch <<< "${nums:-0 0}" || true
   sk=$(awk -v lim=$(( $(date +%s) - SKIP_TTL )) '$2>lim' skip.txt | wc -l)
+  # время загрузок за 31 день: сайт считает по ним «сегодня / неделя / месяц» и рисует график
+  touch up_ts.txt seed_ts.txt
+  recent=$( { jq -r '.recent[]?' prev.json 2>/dev/null || true; cat seed_ts.txt up_ts.txt; } \
+    | awk -v c=$(( $(date +%s) - 31*86400 )) '$1+0>c' | sort -n | jq -Rn '[inputs|tonumber]' 2>/dev/null ) || recent='[]'
+  [ -n "$recent" ] || recent='[]'
   jq -n --arg u "$(date -u +%FT%TZ)" --arg s "$1" --arg cid "$cur_id" --arg cti "$cur_title" --arg cst "$cur_stage" --arg citem "$cur_item" \
     --argjson tot "$tot" --argjson arch "$arch" \
-    --argjson ok "$(wc -l < ok.txt)" --argjson fl "$fail_run" --argjson sk "$sk" \
-    '{updated:$u,state:$s,current:{id:$cid,item:$citem,title:$cti,stage:$cst},total:$tot,archived:$arch,run:{ok:$ok,failed:$fl},skipped:$sk}' > status.json
+    --argjson ok "$(wc -l < ok.txt)" --argjson fl "$fail_run" --argjson sk "$sk" --argjson recent "$recent" \
+    '{updated:$u,state:$s,current:{id:$cid,item:$citem,title:$cti,stage:$cst},total:$tot,archived:$arch,run:{ok:$ok,failed:$fl},skipped:$sk,recent:$recent}' > status.json
   rm -rf _st && mkdir _st && cp status.json skip.txt verified.txt cooldown.txt _st/
   ( cd _st && git init -q -b status && git config user.name archive-bot \
     && git config user.email bot@users.noreply.github.com \
@@ -86,6 +91,14 @@ ia search "uploader:$IA_EMAIL AND subject:$TAG AND NOT subject:$TAG-incomplete" 
 
 { grep -E '^arthas-' ia_all.txt || true; cat ia_tag.txt; } \
   | sed -E 's/^(youtube|arthas-archive|arthas-stream|arthas-video|arthas)-//' | sort -u > done.txt
+
+# ---------- 2.2 история загрузок для статистики (один раз, пока в status.json нет recent) ----------
+if ! jq -e '.recent|type=="array"' prev.json >/dev/null 2>&1; then
+  from=$(date -u -d '32 days ago' +%F); to=$(date -u -d 'tomorrow' +%F)
+  { ia search "uploader:$IA_EMAIL AND NOT subject:$TAG-incomplete AND addeddate:[$from TO $to]" -f addeddate 2>/dev/null \
+      | jq -r '.addeddate // empty' | while read -r d; do date -d "$d" +%s 2>/dev/null || true; done; } > seed_ts.txt || : > seed_ts.txt
+  echo "История загрузок для статистики: $(wc -l < seed_ts.txt) записей"
+fi
 
 # ---------- 2.5 активные пропуски ----------
 awk -v lim=$(( $(date +%s) - SKIP_TTL )) '$2>lim{print $1}' skip.txt > skip_ids.txt
@@ -243,6 +256,8 @@ while IFS=$'\t' read -r id _ts title <&3; do
         --metadata="source:https://youtu.be/$id" --metadata="subject:$TAG-incomplete")
   if [ -n "$vdate" ]; then meta+=(--metadata="date:$vdate"); fi
   if [ -n "$desc" ];  then meta+=(--metadata="description:$desc"); fi
+  vdur=$(jq -r '(.duration // empty) | floor' "dl/$id.info.json" 2>/dev/null || true)
+  if [[ "$vdur" =~ ^[0-9]+$ ]] && [ "$vdur" -gt 0 ]; then meta+=(--metadata="duration:$vdur"); fi
 
   # Заливаем только готовое видео, метаданные и превью (без промежуточных потоков)
   upload_files=("$video_file" "dl/$id.info.json")
@@ -276,6 +291,7 @@ while IFS=$'\t' read -r id _ts title <&3; do
       tag_fails=0
       echo "OK $item (${vh}p)"
       echo "$id" >> ok.txt
+      date +%s >> up_ts.txt
       record_h="$vh"
       # 720p из-за лимита размера: лучше не получить, аудит не должен ставить на перезаливку
       if [ "$fallback720" -eq 1 ] || { [ -n "$max_yt_h" ] && [ "$max_yt_h" -lt 1080 ]; }; then
