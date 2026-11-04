@@ -283,7 +283,45 @@ footer a{text-decoration:underline;text-underline-offset:3px}
 #home:not([hidden]) #all{animation:rise .6s var(--ease) .1s both}
 dialog[open]{animation:rise .3s var(--ease)}
 dialog[open]::backdrop{animation:fade .3s}
-@media (max-width:640px){.stats{grid-template-columns:1fr 1fr}.stat .n{font-size:26px}.stat{padding:14px}}
+/* ---------- прогресс ---------- */
+@keyframes stripes{to{background-position:24px 0,0 0}}
+@keyframes eq{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+.prog{max-width:720px;margin-top:28px;padding:20px 22px;border:1px solid var(--line);border-radius:14px;background:var(--s1);color:var(--fg)}
+.prog-top{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:14px}
+.prog-main{font-size:15px;color:var(--mut)}
+.prog-main b{color:var(--fg);font-size:22px;font-weight:700;letter-spacing:-.02em}
+.prog-pct{font-size:26px;font-weight:700;letter-spacing:-.02em;color:var(--acc)}
+.prog .bar{position:relative;height:12px;margin:0;border-radius:6px;background:var(--s2);box-shadow:inset 0 0 0 1px var(--line)}
+.prog .bar::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.7;background:linear-gradient(var(--s1),var(--s1)) 25%/2px 100% no-repeat,linear-gradient(var(--s1),var(--s1)) 50%/2px 100% no-repeat,linear-gradient(var(--s1),var(--s1)) 75%/2px 100% no-repeat}
+.prog .bar i{border-radius:6px;background:var(--acc);box-shadow:0 0 14px color-mix(in srgb,var(--acc) 50%,transparent);transition:width 1.4s var(--ease)}
+.prog .bar.live i{background:linear-gradient(135deg,rgba(255,255,255,.22) 25%,transparent 25% 50%,rgba(255,255,255,.22) 50% 75%,transparent 75%) 0 0/24px 24px,var(--acc);animation:stripes .9s linear infinite}
+.prog-bot{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between;align-items:center;margin-top:14px;font-size:14px;color:var(--mut)}
+.now{display:inline-flex;align-items:center;gap:8px;min-width:0;max-width:100%}
+.now a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:380px}
+.eq{display:inline-flex;align-items:flex-end;gap:2px;height:12px;flex:none}
+.eq b{width:3px;height:100%;border-radius:1px;background:var(--acc);transform-origin:bottom;animation:eq 1s ease-in-out infinite}
+.eq b:nth-child(2){animation-delay:.2s}.eq b:nth-child(3){animation-delay:.4s}
+/* ---------- выпадающие списки и подсказки ---------- */
+@keyframes pop{from{opacity:0;transform:translateY(-6px) scale(.97)}}
+.dd{position:relative}
+.dd-btn{display:inline-flex;align-items:center;gap:10px;height:36px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--s1);color:var(--fg);font-size:15px;transition:background .2s,border-color .2s}
+.dd-btn:hover,.dd-btn[aria-expanded=true]{background:var(--s2);border-color:var(--mut)}
+.dd-btn::after{content:"";width:7px;height:7px;border:solid currentColor;border-width:0 2px 2px 0;opacity:.6;transform:rotate(45deg) translate(-1px,-1px);transition:transform .25s var(--ease)}
+.dd-btn[aria-expanded=true]::after{transform:rotate(225deg) translate(-1px,-1px)}
+.dd-menu,.sug{position:absolute;z-index:60;margin:0;padding:6px;list-style:none;background:var(--s1);border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.35);overflow:auto;animation:pop .18s var(--ease)}
+.dd-menu{right:0;top:calc(100% + 6px);min-width:170px;max-height:300px;transform-origin:top right}
+.sug{left:0;right:0;top:calc(100% + 6px);max-height:min(420px,70vh);transform-origin:top}
+.dd-opt,.sug-i{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:15px}
+.dd-opt::before{content:"";width:14px;flex:none}
+.dd-opt[aria-selected=true]::before{content:"✓";color:var(--acc)}
+.dd-opt.act,.dd-opt:hover,.sug-i.act,.sug-i:hover{background:var(--hov)}
+.sug-ic{width:18px;text-align:center;color:var(--mut);flex:none}
+.sug-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sug-t mark{background:none;color:var(--acc);font-weight:600}
+.sug-s{flex:none;color:var(--mut);font-size:12px}
+.sug-x{flex:none;width:26px;height:26px;border:0;border-radius:6px;background:none;color:var(--mut);font-size:16px}
+.sug-x:hover{background:var(--s2);color:var(--fg)}
+@media (max-width:640px){.prog{padding:16px}.now a{max-width:60vw}.stats{grid-template-columns:1fr 1fr}.stat .n{font-size:26px}.stat{padding:14px}}
 </style>
 
 </head>
@@ -294,6 +332,7 @@ dialog[open]::backdrop{animation:fade .3s}
     <form class="search" id="sform" role="search">
       <input id="q" type="search" placeholder="Поиск" aria-label="Поиск по архиву" autocomplete="off">
       <button type="button" class="clr" id="qclr" aria-label="Очистить поиск">×</button>
+      <ul class="sug" id="sug" role="listbox" aria-label="Подсказки" hidden></ul>
     </form>
     <a class="toplink" href="https://archive.org/details/@alnyx" target="_blank" rel="noopener">archive.org ↗</a>
   </div>
@@ -305,9 +344,15 @@ dialog[open]::backdrop{animation:fade .3s}
       <h1>Пожизненный бан неизбежен</h1>
       <p>Стримы и ролики Папича автоматически сохраняются на Internet Archive.</p>
       <div class="prog" aria-live="polite">
-        Сохранено <b data-p="done">—</b> из <b data-p="total">—</b> видео (<b data-p="pct">—</b>)
+        <div class="prog-top">
+          <div class="prog-main"><b data-p="done">—</b> из <b data-p="total">—</b> видео сохранено</div>
+          <b class="prog-pct" data-p="pct">—</b>
+        </div>
         <div class="bar" role="progressbar" aria-label="Прогресс архивации" aria-valuemin="0" aria-valuemax="100" data-p="bar"><i data-p="fill"></i></div>
-        <span data-p="status"><span class="dot wait"></span>загружаю…</span><span data-p="nowbox" hidden> · сейчас качается <a data-p="nowlink" target="_blank" rel="noopener"></a></span>
+        <div class="prog-bot">
+          <span data-p="status"><span class="dot wait"></span>загружаю…</span>
+          <span class="now" data-p="nowbox" hidden><i class="eq"><b></b><b></b><b></b></i>сейчас качается <a data-p="nowlink" target="_blank" rel="noopener"></a></span>
+        </div>
       </div>
       <div class="stats" id="stats">
         <div class="stat hl" style="--i:0"><span class="n" data-s="today">—</span><span class="l">загружено сегодня</span><span class="h" data-s="todayH"></span></div>
@@ -488,6 +533,7 @@ function buildQuery() {
 }
 
 function resetGrid() {
+  yearDD.sync();
   state.page = 0; state.total = Infinity; state.gen++; state.loading = false;
   $("grid").replaceChildren(); $("gmsg").hidden = true; $("count").textContent = "";
   $("listTitle").textContent = state.term ? "«" + state.term + "»" : state.year ? state.year + " год" : "Все видео";
@@ -534,13 +580,102 @@ $("seg").querySelectorAll("button").forEach(b => b.onclick = () => {
 });
 yearSel.onchange = () => { state.year = yearSel.value; resetGrid(); };
 
+/* ---------- свои выпадающие списки ---------- */
+function makeDropdown(sel) {
+  const lab = el("span"), btn = el("button", { className: "dd-btn", type: "button" }, lab);
+  const menu = el("ul", { className: "dd-menu", role: "listbox", tabIndex: -1, hidden: true }), wrap = el("div", { className: "dd" });
+  btn.setAttribute("aria-haspopup", "listbox"); btn.setAttribute("aria-expanded", "false"); btn.setAttribute("aria-label", sel.getAttribute("aria-label") || "");
+  let act = 0;
+  const items = [...sel.options].map(o => { const li = el("li", { className: "dd-opt", role: "option", textContent: o.textContent }); li.dataset.v = o.value; li.onclick = () => pick(o.value); return li; });
+  menu.append(...items);
+  const sync = () => { const o = sel.options[sel.selectedIndex]; lab.textContent = o ? o.textContent : ""; items.forEach(li => li.setAttribute("aria-selected", li.dataset.v === sel.value)); };
+  const hl = i => { act = Math.max(0, Math.min(items.length - 1, i)); items.forEach((li, j) => li.classList.toggle("act", j === act)); items[act].scrollIntoView({ block: "nearest" }); };
+  const open = () => { menu.hidden = false; btn.setAttribute("aria-expanded", "true"); hl(Math.max(0, sel.selectedIndex)); };
+  const close = () => { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); };
+  const pick = v => { if (sel.value !== v) { sel.value = v; sel.onchange && sel.onchange(); } sync(); close(); btn.focus(); };
+  btn.onclick = () => menu.hidden ? open() : close();
+  wrap.addEventListener("keydown", e => {
+    if (e.key === "Escape" && !menu.hidden) { e.preventDefault(); close(); btn.focus(); return; }
+    if (!["ArrowDown", "ArrowUp", "Enter", " ", "Home", "End"].includes(e.key)) return;
+    if (menu.hidden) { if (e.key !== "Home" && e.key !== "End") { e.preventDefault(); open(); } return; }
+    e.preventDefault();
+    if (e.key === "ArrowDown") hl(act + 1); else if (e.key === "ArrowUp") hl(act - 1); else if (e.key === "Home") hl(0); else if (e.key === "End") hl(items.length - 1); else pick(items[act].dataset.v);
+  });
+  wrap.addEventListener("keyup", e => { if (e.key === " ") e.preventDefault(); });
+  document.addEventListener("pointerdown", e => { if (!wrap.contains(e.target)) close(); });
+  sel.hidden = true; sel.after(wrap); wrap.append(btn, menu); sync();
+  return { sync };
+}
+const yearDD = makeDropdown(yearSel);
+
 $("sform").onsubmit = e => {
   e.preventDefault();
-  const q = $("q").value.trim();
+  const q = $("q").value.trim(); if (q) saveRecent(q);
   $("q").blur();
   location.hash = q ? "#/search/" + encodeURIComponent(q) : "#/";
 };
 $("qclr").onclick = () => { $("q").value = ""; $("q").focus(); if (state.term) location.hash = "#/"; };
+
+/* ---------- подсказки в поиске ---------- */
+let recent = [];
+try { recent = JSON.parse(localStorage.getItem("pt:sq") || "[]"); } catch (e) {}
+function saveRecent(t) { recent = [t, ...recent.filter(x => x !== t)].slice(0, 6); try { localStorage.setItem("pt:sq", JSON.stringify(recent)); } catch (e) {} }
+const sug = $("sug"), qi = $("q");
+let rows = [], sBase = [], sAct = -1, sGen = 0, sTimer;
+const closeSug = () => { sug.hidden = true; sAct = -1; };
+function mark(text, term) {
+  const w = term.split(/\s+/).filter(Boolean).map(x => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (!w.length) return [text];
+  return text.split(new RegExp("(" + w.join("|") + ")", "ig")).map((p, i) => i % 2 ? el("mark", { textContent: p }) : p);
+}
+function showSug(list, keep) {
+  rows = list; if (!keep) sAct = -1; if (sAct >= rows.length) sAct = -1;
+  sug.replaceChildren(...rows.map((r, i) => {
+    const li = el("li", { className: "sug-i" + (i === sAct ? " act" : ""), role: "option" }, el("span", { className: "sug-ic", textContent: r.icon }), el("span", { className: "sug-t" }, ...mark(r.text, r.hl || "")));
+    if (r.sub) li.append(el("span", { className: "sug-s", textContent: r.sub }));
+    if (r.kind === "recent") li.append(el("button", { className: "sug-x", type: "button", tabIndex: -1, ariaLabel: "Убрать из истории", textContent: "×", onclick: e => { e.stopPropagation(); recent = recent.filter(x => x !== r.text); try { localStorage.setItem("pt:sq", JSON.stringify(recent)); } catch (er) {} renderBase(); } }));
+    li.onmousedown = e => e.preventDefault(); li.onclick = () => pickSug(i);
+    return li;
+  }));
+  sug.hidden = !rows.length;
+}
+function renderBase() {
+  const v = qi.value.trim().toLowerCase();
+  if (!v) sBase = recent.map(t => ({ kind: "recent", icon: "↺", text: t }));
+  else sBase = [{ kind: "query", icon: "⌕", text: qi.value.trim(), sub: "искать" }, ...recent.filter(t => t.toLowerCase().startsWith(v) && t.toLowerCase() !== v).slice(0, 2).map(t => ({ kind: "recent", icon: "↺", text: t, hl: qi.value.trim() }))];
+  showSug(sBase, true);
+}
+async function fetchSug(term, gen) {
+  const t = term.replace(/["\\()\[\]:*]/g, " ").split(/\s+/).filter(Boolean); if (!t.length) return;
+  const last = t.pop(); let qq = BASE_Q; t.forEach(w => qq += ' AND title:"' + w + '"'); qq += " AND title:(" + last + "*)";
+  try {
+    const r = await search(qq, "downloads desc", 1, 6, ["identifier", "title", "date", "addeddate"]);
+    if (gen !== sGen) return;
+    showSug([...sBase, ...r.docs.map(d => ({ kind: "video", icon: "▶", id: d.identifier, text: first(d.title) || d.identifier, hl: term, sub: shortDate(dateOf(d)) }))], true);
+  } catch (e) {}
+}
+function pickSug(i) {
+  const r = rows[i]; if (!r) return;
+  closeSug();
+  if (r.kind === "video") { qi.blur(); location.hash = "#/watch/" + encodeURIComponent(r.id); }
+  else { qi.value = r.text; $("sform").requestSubmit(); }
+}
+qi.setAttribute("autocomplete", "off"); qi.setAttribute("aria-autocomplete", "list");
+qi.addEventListener("focus", renderBase);
+qi.addEventListener("blur", closeSug);
+qi.addEventListener("input", () => {
+  clearTimeout(sTimer); const gen = ++sGen; renderBase();
+  const v = qi.value.trim(); if (v.length >= 2) sTimer = setTimeout(() => fetchSug(v, gen), 250);
+});
+qi.addEventListener("keydown", e => {
+  if (e.key === "Escape") { closeSug(); return; }
+  if (sug.hidden || !rows.length) return;
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault(); sAct = (sAct + (e.key === "ArrowDown" ? 1 : -1) + rows.length + 1) % (rows.length + 1) ;
+    if (sAct === rows.length) sAct = -1;
+    [...sug.children].forEach((li, j) => li.classList.toggle("act", j === sAct)); sug.children[sAct]?.scrollIntoView({ block: "nearest" });
+  } else if (e.key === "Enter" && sAct >= 0) { e.preventDefault(); pickSug(sAct); }
+});
 
 /* ---------- диалоги ---------- */
 document.querySelectorAll("dialog").forEach(d => {
